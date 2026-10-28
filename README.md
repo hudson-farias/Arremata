@@ -45,6 +45,8 @@ npm install && npm run dev
 
 ## Back
 
+O catálogo externo é a Pokémon TCG API; o Redis cacheia a busca para não repetir a mesma consulta.
+
 Checklist para confirmar no fim do desenvolvimento.
 
 - [ ] API externa: vitrine, sala, auditoria e comprovante seguem se a API cair.
