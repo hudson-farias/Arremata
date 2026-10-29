@@ -36,7 +36,7 @@ npm install && npm run dev
 
 ## Front
 
-- [ ] `/login` e `/register` — login e registro.
+- [x] `/login` e `/register` — login e registro.
 - [ ] `/lots` — vitrine (ao vivo, agendados, encerrados; cancelados fora).
 - [ ] `/auctioneer` — painel do leiloeiro: busca na API externa, criar lote com imagem, título, atributos, início, fim e lance mínimo, cancelar lote sem lances e resultado do encerrado.
 - [ ] `/lots/[id]` — sala ao vivo: lance atual, histórico, posição, contagem regressiva, ganhando/superado, sem reload. Lance recusado: abaixo do mínimo, saldo insuficiente, já está ganhando, lote ainda não começou ou encerrado.
@@ -62,7 +62,7 @@ Checklist para confirmar no fim do desenvolvimento.
 
 - [ ] Busca e filtro de lotes.
 - [ ] Cancelamento de lote com estorno automático.
-- [ ] Docker Compose.
+- [x] Docker Compose.
 - [ ] Testes automatizados.
 - [ ] Dark mode.
 
