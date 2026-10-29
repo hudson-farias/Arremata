@@ -1,11 +1,11 @@
-name: arremata
+name: app
 
 x-backend: &backend
   build:
-    context: apps/backend
+    context: ../apps/backend
     dockerfile: Dockerfile
   env_file:
-    - apps/backend/.env
+    - ../.env
   extra_hosts:
     - "host.docker.internal:host-gateway"
   restart: always
@@ -14,16 +14,41 @@ services:
   api:
     <<: *backend
     ports:
-      - "8000:8000"
+      - "${API_PORT:-8000}:8000"
     environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
       REDIS_URL: redis://redis:6379/0
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  web:
+    build:
+      context: ../apps/web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: always
 
   db:
     image: postgres:15
-    container_name: arremata_db
+    container_name: app_db
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -33,10 +58,16 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
 
   redis:
     image: redis:7-alpine
-    container_name: arremata_redis
+    container_name: app_redis
     restart: always
     ports:
       - "${REDIS_PORT:-6379}:6379"
