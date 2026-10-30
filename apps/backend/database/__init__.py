@@ -32,19 +32,14 @@ class Base(DeclarativeBase):
 
 
     async def create(self, **kwargs):
-        data = None
-
         async with Session() as db:
-            stmt = insert(self.__class__).values(**{column: value for column, value in kwargs.items() if column in self.columns})
+            primary_key = self.__class__.primary_key
+            stmt = insert(self.__class__).values(**{column: value for column, value in kwargs.items() if column in self.columns}).returning(getattr(self.__class__, primary_key))
             result = await db.execute(stmt)
             await db.commit()
+            new_id = result.scalar_one()
 
-        #     if result:
-        #         primary_key = self.__class__.primary_key
-        #         query = {primary_key: result.lastrowid}
-        #         data = await self.find_one(**query)
-
-        # return data
+        return await self.find_one(**{primary_key: new_id})
 
 
     async def update(self, id: int, **kwargs):

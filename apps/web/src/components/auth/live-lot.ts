@@ -18,6 +18,11 @@ export type LotSummary = {
   reserveMet?: boolean
 }
 
+export type OpenLotsPayload = {
+  ok: boolean
+  lots: LotSummary[]
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
@@ -229,17 +234,18 @@ function toLotSummary(value: unknown): LotSummary | null {
   }
 }
 
-export function pickLiveLot(payload: unknown): LotSummary | null {
-  if (!Array.isArray(payload) || payload.length === 0) return null
+export function parseOpenLots(payload: unknown): LotSummary[] | null {
+  if (!Array.isArray(payload)) return null
 
   const lots: LotSummary[] = []
+  const seen = new Set<string>()
+
   for (const item of payload) {
     const lot = toLotSummary(item)
-    if (lot) lots.push(lot)
+    if (!lot || seen.has(lot.key)) continue
+    seen.add(lot.key)
+    lots.push(lot)
   }
 
-  if (lots.length === 0) return null
-
-  const index = Math.floor(Math.random() * lots.length)
-  return lots[index] ?? null
+  return lots
 }

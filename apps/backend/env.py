@@ -15,6 +15,7 @@ POSTGRES_DB = getenv('POSTGRES_DB')
 
 POKEMON_TCG_API_URL = getenv('POKEMON_TCG_API_URL', 'https://api.pokemontcg.io/v2')
 REDIS_URL = getenv('REDIS_URL', 'redis://127.0.0.1:6379/0')
+TOKEN_SECRET = getenv('TOKEN_SECRET')
 
 
 def postgres_url(driver: str = 'postgresql+asyncpg') -> str:

@@ -1,14 +1,21 @@
+import nookies from 'nookies'
+
 type SearchParams = Record<string, string | string[] | undefined>
 
-const apiBaseURL = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '')
-const authBaseURL = (process.env.NEXT_PUBLIC_AUTH_URL || '').replace(/\/$/, '')
+const apiBaseURL = '/backend'
 
 class ApiClient {
   private headers(method: string, isForm: boolean = false): Record<string, string> {
-    const headers: Record<string, string> = {}
+    const token = nookies.get(null).TOKEN
+
+    const headers: Record<string, string> = {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    }
+
     if (!isForm && method !== 'GET' && method !== 'HEAD') {
       headers['Content-Type'] = 'application/json'
     }
+
     return headers
   }
 
@@ -44,17 +51,64 @@ class ApiClient {
     return response
   }
 
-  get loginUrl() {
-    // TODO
-    return 
+  private storeToken(accessToken: string) {
+    nookies.set(null, 'TOKEN', accessToken, {
+      maxAge: 60 * 60 * 24 * 30,
+      path: '/',
+      sameSite: 'lax',
+    })
   }
 
-  logout(redirect: string = '/admin'): void {
-    // TODO
+  async login(loginData: object): Promise<Response> {
+    const response = await fetch(`${apiBaseURL}/login`, {
+      method: 'POST',
+      headers: this.headers('POST'),
+      body: JSON.stringify(loginData),
+      credentials: 'include',
+    })
+
+    if (response.status === 201) {
+      const data: { access_token: string } = await response.json()
+      if (data['access_token']) this.storeToken(data['access_token'])
+    }
+
+    return response
+  }
+
+  setToken(data: { access_token: string }, redirect: string = '/') {
+    if (data['access_token']) this.storeToken(data['access_token'])
+
+    window.location.href = redirect
+  }
+
+  logout() {
+    nookies.destroy(null, 'TOKEN', { path: '/' })
+    nookies.destroy(null, 'ISAUTH', { path: '/' })
+
+    window.location.href = '/login'
+  }
+
+  setAuthenticated(isAuthenticated: boolean) {
+    nookies.set(null, 'ISAUTH', isAuthenticated ? 'true' : 'false', {
+      path: '/',
+      sameSite: 'lax',
+    })
+  }
+
+  async isAuthenticated(): Promise<boolean> {
+    const isAuth = nookies.get(null).ISAUTH
+    return isAuth === 'true'
   }
 
   async checkAuth(): Promise<boolean> {
-    const response = await fetch(`${authBaseURL}/verify`, {
+    const token = nookies.get(null).TOKEN
+
+    const response = await fetch(`${apiBaseURL}/me`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       credentials: 'include',
       cache: 'no-store',
     })

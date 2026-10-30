@@ -24,3 +24,8 @@ class Credentials(BaseModel):
 class UserOut(BaseModel):
     id: int
     email: str
+
+
+class AuthResponse(BaseModel):
+    access_token: str
+    token_type: str = 'bearer'

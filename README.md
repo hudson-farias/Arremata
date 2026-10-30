@@ -1,48 +1,32 @@
 # Arremata
 
-Monorepo Next.js (`apps/web`) + FastAPI (`apps/backend`) + Postgres (`infrastructure`).
+Casa de leilões online de cartas colecionáveis. O leiloeiro publica os lotes. O licitante acompanha, deposita um saldo simulado e dá lances ao vivo.
 
-As rotas da API não usam o prefixo `/api`. O site concatena a origem (`NEXT_PUBLIC_API_URL`) com o caminho. Health: `GET /health`. Docs: `/docs`.
+O site é Next.js, a API é Python, o banco é Postgres e há cache. Tudo sobe com Docker.
 
 ## Como rodar
 
-Um único compose sobe o site, a API, o Postgres e o Redis, em `infrastructure/docker-compose.yml`.
+Copie os arquivos de ambiente e suba o projeto:
 
 ```bash
 cp .env.example .env
+cp apps/backend/.env.example apps/backend/.env
 docker compose -p arremata --env-file .env \
   -f infrastructure/docker-compose.yml up -d --build
 ```
 
-No Compose a API fala com o serviço `db` na porta interna 5432. A porta do Postgres publicada no host é `POSTGRES_PORT`.
-
-Migrations ficam em `apps/backend/alembic/versions/`. O entrypoint da imagem não roda o Alembic; na primeira subida, com o container da API no ar:
-
-```bash
-docker compose -p arremata --env-file .env \
-  -f infrastructure/docker-compose.yml exec api alembic upgrade head
-```
-
-Python 3.12 está no `.tool-versions` e na imagem do `Dockerfile`.
-
-Fora do Compose, cada app copia o próprio example:
-
-```bash
-cp apps/backend/.env.example apps/backend/.env
-cp apps/web/.env.example apps/web/.env
-cd apps/web
-npm install && npm run dev
-```
+O site abre em http://localhost:3000.
 
 ## Front
 
 - [x] `/login` e `/register` — login e registro.
 - [ ] `/lots` — vitrine (ao vivo, agendados, encerrados; cancelados fora).
-- [ ] `/auctioneer` — painel do leiloeiro: busca na API externa, criar lote com imagem, título, atributos, início, fim e lance mínimo, cancelar lote sem lances e resultado do encerrado.
 - [ ] `/lots/[id]` — sala ao vivo: lance atual, histórico, posição, contagem regressiva, ganhando/superado, sem reload. Lance recusado: abaixo do mínimo, saldo insuficiente, já está ganhando, lote ainda não começou ou encerrado.
-- [ ] `/wallet` — carteira: saldo total, comprometido, disponível e depósito simulado.
-- [ ] `/wins` — meus arremates, com comprovante e link.
 - [ ] `/lots/[id]/audit` — auditoria pública, sem login: histórico e se está íntegro.
+- [x] `/auctioneer` — painel do leiloeiro: busca na API externa, criar lote com imagem, título, atributos, início, fim e lance mínimo, cancelar lote sem lances e encerrado sem vencedor.
+- [ ] `/auctioneer` — o leiloeiro define o incremento mínimo do lote; no encerrado, vê se foi arrematado, por quanto e o total recebido.
+- [ ] `/wins` — lotes em que a pessoa deu lance e os que venceu; comprovante com link público, sem login.
+- [ ] Header autenticado — carteira sempre visível (vitrine, sala, arremates e painel do leiloeiro): saldo total, comprometido, disponível e depósito simulado. Sem rota `/wallet`.
 
 ## Back
 
@@ -55,7 +39,7 @@ Checklist para confirmar no fim do desenvolvimento.
 - [ ] Saldo disponível = total - comprometido; ao liderar compromete; ao ser superado volta na hora.
 - [ ] Anti-sniping: lance nos últimos 2 minutos prorroga o fim em +2 minutos.
 - [ ] Liquidação: debita vencedor, credita leiloeiro, gera comprovante; sem lances fecha sem vencedor.
-- [ ] Histórico à prova de adulteração, inclusive alteração direta no banco.
+- [ ] Histórico à prova de adulteração, inclusive alteração direta no banco. A técnica escolhida fica explicada neste README.
 - [ ] Auditoria e comprovante identificam licitantes sem dados pessoais.
 
 ## Opcionais
@@ -64,6 +48,6 @@ Checklist para confirmar no fim do desenvolvimento.
 - [ ] Cancelamento de lote com estorno automático.
 - [x] Docker Compose.
 - [ ] Testes automatizados.
-- [ ] Dark mode.
+- [x] Dark mode.
 
 Fora de escopo: nota fiscal, revenda entre usuários, app nativo e recuperação de senha não entram.

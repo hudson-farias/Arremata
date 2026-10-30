@@ -1,3 +1,7 @@
 https://www.catawiki.com/pt
 https://www.liveauctioneers.com/
 https://www.superbid.net/
+
+feat: finish login and let the auctioneer publish lots
+
+Sign-in stores a session and the panel searches cards, creates lots and cancels them. The site gains dark mode, and the README explains the product and how to start it with Docker.
