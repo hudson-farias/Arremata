@@ -3,6 +3,7 @@ import { ArrowLeft, Lock, ScrollText, Shield, ShieldCheck } from "lucide-react"
 
 import {
   bidCountLabel,
+  bidKey,
   collectorLine,
   formatLotDate,
   formatLotMoney,
@@ -18,7 +19,7 @@ const displayFont = "[font-family:Georgia,Palatino,'Times_New_Roman',serif]"
 const labelClass = "font-mono text-[11px] tracking-[0.12em] text-muted-foreground uppercase"
 const cardClass = "rounded-lg border border-border bg-card"
 
-const columns = ["Ordem", "Horário", "Licitante", "Valor"] as const
+const columns = ["Horário", "Licitante", "Valor"] as const
 
 type ChainPanel = {
   title: string
@@ -53,18 +54,11 @@ function bidTimestamp(createdAt: string): number {
 
 function openingBid(lot: ShowcaseLot): number | null {
   if (lot.bidCount === 0 || lot.bids.length === 0 || lot.bids.length < lot.bidCount) return null
-  const rows = historyRows(lot)
-  return rows.at(-1)?.bid.amount ?? null
+  return historyRows(lot).at(-1)?.amount ?? null
 }
 
-function historyRows(lot: ShowcaseLot): { order: number; bid: LotBid }[] {
-  const rows = [...lot.bids].sort((a, b) => bidTimestamp(b.createdAt) - bidTimestamp(a.createdAt))
-  const full = rows.length === lot.bidCount
-
-  return rows.map((bid, index) => ({
-    bid,
-    order: full ? rows.length - index : lot.bidCount - index,
-  }))
+function historyRows(lot: ShowcaseLot): LotBid[] {
+  return [...lot.bids].sort((a, b) => bidTimestamp(b.createdAt) - bidTimestamp(a.createdAt))
 }
 
 function historyEmpty(bidCount: number): string {
@@ -179,9 +173,8 @@ export function AuditReport({ lot }: { lot: ShowcaseLot }) {
                   </TableCell>
                 </TableRow>
               ) : (
-                rows.map(({ order, bid }) => (
-                  <TableRow key={`${order}-${bid.createdAt}-${bid.bidderId}`} className="border-border">
-                    <TableCell className="px-4">{order}</TableCell>
+                rows.map((bid) => (
+                  <TableRow key={bidKey(bid)} className="border-border">
                     <TableCell className="px-4">{formatLotDate(bid.createdAt) ?? "—"}</TableCell>
                     <TableCell className="px-4">#{bid.bidderId}</TableCell>
                     <TableCell className="px-4 text-primary">{formatLotMoney(bid.amount)}</TableCell>

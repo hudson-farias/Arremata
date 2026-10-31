@@ -66,6 +66,21 @@ async function cancelLot(id: string): Promise<{ status: number }> {
   return { status: response.status }
 }
 
+async function updateLot(
+  id: string,
+  body: {
+    title: string
+    starts_at: string
+    ends_at: string
+    minimum_bid: number
+    increment: number
+  },
+): Promise<{ status: number }> {
+  "use server"
+  const response = await API.patch(`/auctioneer/lots/${encodeURIComponent(id)}`, body)
+  return { status: response.status }
+}
+
 export default async function AuctioneerPage() {
   const initialLots = await fetchLots()
 
@@ -80,6 +95,7 @@ export default async function AuctioneerPage() {
       searchCards={searchCards}
       createLot={createLot}
       cancelLot={cancelLot}
+      updateLot={updateLot}
     />
   )
 }

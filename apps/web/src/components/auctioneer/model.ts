@@ -12,6 +12,11 @@ export type CatalogCard = {
 
 export type LotStatus = "scheduled" | "live" | "closed" | "cancelled"
 
+export type LotResult = {
+  winner: number | null
+  amount: number | null
+}
+
 export type AuctionLot = {
   id: string
   title: string
@@ -19,9 +24,13 @@ export type AuctionLot = {
   status: LotStatus | null
   bidCount: number
   minimumBid: number | null
+  increment: number | null
+  startsAt: string | null
+  endsAt: string | null
   setName: string
   rarity: string
   number: string
+  result: LotResult | null
 }
 
 const lotStatuses: readonly LotStatus[] = ["scheduled", "live", "closed", "cancelled"]
@@ -128,6 +137,31 @@ function statusOf(value: unknown): LotStatus | null {
   return lotStatuses.find((status) => status === raw) ?? null
 }
 
+function publicId(value: unknown): number | null {
+  if (typeof value === "number" && Number.isSafeInteger(value) && value > 0) return value
+  if (typeof value === "string" && /^[1-9]\d*$/.test(value.trim())) {
+    const parsed = Number(value.trim())
+    if (Number.isSafeInteger(parsed)) return parsed
+  }
+  return null
+}
+
+function readDate(value: unknown): string | null {
+  if (typeof value !== "string") return null
+  const raw = value.trim()
+  if (!raw || Number.isNaN(Date.parse(raw))) return null
+  return raw
+}
+
+function parseResult(value: unknown): LotResult | null {
+  if (!isRecord(value)) return null
+
+  return {
+    winner: publicId(value.winner),
+    amount: money(value.amount),
+  }
+}
+
 export function parseLot(value: unknown): AuctionLot | null {
   if (!isRecord(value)) return null
 
@@ -144,9 +178,13 @@ export function parseLot(value: unknown): AuctionLot | null {
     status: statusOf(value.status),
     bidCount: count(value.bid_count),
     minimumBid: money(value.minimum_bid),
+    increment: money(value.increment),
+    startsAt: readDate(value.starts_at),
+    endsAt: readDate(value.ends_at),
     setName: text(attributes.set_name) || text(value.set_name),
     rarity: text(attributes.rarity) || text(value.rarity),
     number: text(attributes.number) || text(value.number),
+    result: parseResult(value.result),
   }
 }
 
@@ -180,12 +218,7 @@ export function statusLabel(status: LotStatus | null): string {
 }
 
 export function canCancelLot(lot: AuctionLot): boolean {
-  if (lot.bidCount > 0) return false
   return lot.status === "scheduled" || lot.status === "live"
-}
-
-export function closedWithoutWinner(lot: AuctionLot): boolean {
-  return lot.status === "closed" && lot.bidCount === 0
 }
 
 export function formatMoney(value: number | null): string {
@@ -204,4 +237,13 @@ export function minimumBidTotal(lots: AuctionLot[]): number | null {
   )
   if (values.length === 0) return null
   return values.reduce((sum, value) => sum + value, 0)
+}
+
+export function receivedTotal(lots: AuctionLot[]): number {
+  return lots.reduce((sum, lot) => {
+    if (lot.status !== "closed") return sum
+    const amount = lot.result?.amount
+    if (lot.result?.winner == null || amount == null) return sum
+    return sum + amount
+  }, 0)
 }

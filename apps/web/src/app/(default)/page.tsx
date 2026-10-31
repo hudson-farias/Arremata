@@ -1,15 +1,47 @@
-import { Button } from "@/components/ui/button"
+import type { Metadata } from "next"
 
-export default function HomePage() {
-  return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-6 px-6 py-16">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-semibold tracking-tight">Arremata</h1>
-        <p className="max-w-xl text-sm text-muted-foreground">
-          Next.js no front e FastAPI na API. O Postgres sobe pelo compose em infrastructure.
-        </p>
-      </div>
-      <Button className="w-fit rounded-[4px]">Começar</Button>
-    </main>
-  )
+import { API } from "@/api/server"
+import { isShowcaseStatus, parseShowcaseLots, type LotsPayload, type ShowcaseStatus } from "@/components/lots/model"
+
+import LotsPageClient from "./page-client"
+
+export const metadata: Metadata = {
+  title: "Lotes — Arremata",
+}
+
+async function readPayload(response: Response): Promise<unknown> {
+  const text = await response.text()
+  if (!text) return null
+
+  try {
+    return JSON.parse(text) as unknown
+  } catch {
+    return null
+  }
+}
+
+async function fetchLots(status: ShowcaseStatus): Promise<LotsPayload> {
+  try {
+    const response = await API.get("/lots", { status })
+    if (!response.ok) return { status: response.status, lots: [] }
+
+    const lots = parseShowcaseLots(await readPayload(response))
+    if (!lots) return { status: 502, lots: [] }
+
+    return { status: response.status, lots }
+  } catch {
+    return { status: 0, lots: [] }
+  }
+}
+
+async function listLots(status: string): Promise<LotsPayload> {
+  "use server"
+  if (!isShowcaseStatus(status)) return { status: 400, lots: [] }
+  return fetchLots(status)
+}
+
+export default async function LotsPage() {
+  const initialLots = await fetchLots("live")
+
+  return <LotsPageClient initialLots={initialLots} listLots={listLots} />
 }

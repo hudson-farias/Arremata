@@ -1,10 +1,10 @@
 import Link from "next/link"
-import { LogOut, Shield } from "lucide-react"
+import { Shield } from "lucide-react"
 import type { ReactNode } from "react"
 
 import { API } from "@/api/server"
+import { AccountMenu } from "@/components/site/account-menu"
 import { DepositDialog } from "@/components/site/deposit-dialog"
-import { logout } from "@/components/site/logout"
 import { ThemeToggle } from "@/components/theme/theme-toggle"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -80,12 +80,7 @@ export default async function DefaultLayout({ children }: { children: ReactNode 
                 </dl>
                 <DepositDialog />
                 <ThemeToggle />
-                <form action={logout}>
-                  <Button type="submit" variant="ghost" className="rounded-[4px]">
-                    <LogOut data-icon="inline-start" />
-                    Sair
-                  </Button>
-                </form>
+                <AccountMenu />
               </>
             ) : (
               <>

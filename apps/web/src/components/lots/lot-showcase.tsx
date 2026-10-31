@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowLeft, Shield } from "lucide-react"
+import { ArrowLeft, Receipt, Shield } from "lucide-react"
 
 import { CardPortrait } from "@/components/auctioneer/card-portrait"
 import { collectorLine, type ShowcaseLot } from "@/components/lots/model"
@@ -15,7 +15,7 @@ export function LotShowcase({ lot }: { lot: ShowcaseLot }) {
     <section className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link
-          href="/lots"
+          href="/"
           className="inline-flex items-center gap-1.5 text-[0.7rem] tracking-[0.16em] text-muted-foreground uppercase transition-colors hover:text-primary"
         >
           <ArrowLeft className="size-3.5" aria-hidden />
@@ -29,6 +29,14 @@ export function LotShowcase({ lot }: { lot: ShowcaseLot }) {
               Auditoria
             </Link>
           </Button>
+          {lot.status === "closed" ? (
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/lots/${lot.id}/receipt`}>
+                <Receipt data-icon="inline-start" aria-hidden />
+                Comprovante
+              </Link>
+            </Button>
+          ) : null}
         </div>
       </div>
 

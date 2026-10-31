@@ -234,11 +234,7 @@ export function mergeLiveLot(current: ShowcaseLot, incoming: ShowcaseLot): Showc
 
   const amounts = [current.currentBid, incoming.currentBid].filter((value): value is number => value != null)
   const incomingNewer = incoming.bidCount >= current.bidCount
-  const endsAt = incoming.bidCount > current.bidCount
-    ? incoming.endsAt ?? current.endsAt
-    : incoming.bidCount < current.bidCount
-      ? current.endsAt
-      : laterIso(current.endsAt, incoming.endsAt)
+  const endsAt = laterIso(current.endsAt, incoming.endsAt)
 
   return {
     ...incoming,
@@ -265,7 +261,7 @@ export function userIsLeading(lot: ShowcaseLot, viewerId: number | null): boolea
   return topBid(lot)?.bidderId === viewerId
 }
 
-export function collectorLine(lot: ShowcaseLot): string {
+export function collectorLine(lot: Pick<ShowcaseLot, "setName" | "rarity" | "number">): string {
   const number = !lot.number ? "" : lot.number.startsWith("#") ? lot.number : `#${lot.number}`
   return [lot.setName, lot.rarity, number].filter(Boolean).join(" · ")
 }

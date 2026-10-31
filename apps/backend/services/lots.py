@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,6 +7,7 @@ from database import Session
 from database.bids import BidsORM
 
 RECENT_LIMIT = 20
+TWO_MINUTES = timedelta(minutes = 2)
 
 
 def now_utc() -> datetime:
@@ -35,6 +36,17 @@ def status_of(lot, moment: datetime | None = None) -> str:
         return 'live'
 
     return 'closed'
+
+
+def extend_ends_at(lot, moment: datetime) -> bool:
+    moment = aware(moment)
+    ends_at = aware(lot.ends_at)
+
+    if ends_at - moment > TWO_MINUTES:
+        return False
+
+    lot.ends_at = ends_at + TWO_MINUTES
+    return True
 
 
 async def bid_summary(lot_id: int, db: AsyncSession | None = None) -> tuple[int, int | None]:
@@ -101,13 +113,15 @@ async def leading_bidder(lot_id: int, db: AsyncSession | None = None) -> int | N
     return None if bidder_id is None else int(bidder_id)
 
 
-async def recent_bids(lot_id: int, db: AsyncSession | None = None, limit: int = RECENT_LIMIT) -> list[dict]:
+async def recent_bids(lot_id: int, db: AsyncSession | None = None, limit: int | None = RECENT_LIMIT) -> list[dict]:
     stmt = (
         select(BidsORM.amount_cents, BidsORM.created_at, BidsORM.bidder_id)
         .where(BidsORM.lot_id == lot_id)
         .order_by(BidsORM.created_at.desc(), BidsORM.id.desc())
-        .limit(limit)
     )
+
+    if limit is not None:
+        stmt = stmt.limit(limit)
 
     if db is not None:
         rows = (await db.execute(stmt)).all()
@@ -127,9 +141,29 @@ async def recent_bids(lot_id: int, db: AsyncSession | None = None, limit: int = 
 
 def result_of(status: str, bids: int):
     if status == 'closed' and bids == 0:
-        return {'winner': None}
+        return {'winner': None, 'amount': None}
 
     return None
+
+
+async def result_for(status: str, bids: int, lot_id: int, db: AsyncSession | None = None):
+    if status != 'closed':
+        return None
+
+    from services.settlement import settlement_for
+
+    settlement = await settlement_for(lot_id, db)
+
+    if settlement is not None and settlement['winner'] is not None:
+        return {
+            'winner': settlement['winner'],
+            'amount': int(settlement['amount']),
+        }
+
+    if settlement is not None:
+        return {'winner': None, 'amount': None}
+
+    return result_of(status, bids)
 
 
 def attributes_of(lot) -> dict:
@@ -148,7 +182,13 @@ def attributes_of(lot) -> dict:
     }
 
 
-async def auctioneer_lot(lot, moment: datetime | None = None, *, summary: tuple[int, int | None] | None = None) -> dict:
+async def auctioneer_lot(
+    lot,
+    moment: datetime | None = None,
+    *,
+    summary: tuple[int, int | None] | None = None,
+    db: AsyncSession | None = None,
+) -> dict:
     moment = aware(moment or now_utc())
     status = status_of(lot, moment)
 
@@ -172,7 +212,7 @@ async def auctioneer_lot(lot, moment: datetime | None = None, *, summary: tuple[
         'cancelled_at': None if lot.cancelled_at is None else aware(lot.cancelled_at),
         'status': status,
         'bid_count': bids,
-        'result': result_of(status, bids),
+        'result': await result_for(status, bids, lot.id, db),
     }
 
 
@@ -181,6 +221,7 @@ async def public_lot(
     moment: datetime | None = None,
     *,
     include_bids: bool = False,
+    bid_limit: int | None = RECENT_LIMIT,
     summary: tuple[int, int | None] | None = None,
     db: AsyncSession | None = None,
 ) -> dict:
@@ -192,7 +233,7 @@ async def public_lot(
 
     bids, amount = summary
     attributes = attributes_of(lot)
-    history = await recent_bids(lot.id, db) if include_bids else []
+    history = await recent_bids(lot.id, db, bid_limit) if include_bids else []
 
     return {
         'id': lot.id,
@@ -210,5 +251,5 @@ async def public_lot(
         'set_name': attributes.get('set_name'),
         'rarity': attributes.get('rarity'),
         'number': attributes.get('number'),
-        'result': result_of(status, bids),
+        'result': await result_for(status, bids, lot.id, db),
     }

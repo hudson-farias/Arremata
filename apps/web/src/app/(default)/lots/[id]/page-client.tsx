@@ -47,6 +47,14 @@ function parseReais(raw: string): number | null {
   return value
 }
 
+function endsMoved(previous: string | null, next: string | null): boolean {
+  if (!previous || !next) return false
+
+  const left = Date.parse(previous)
+  const right = Date.parse(next)
+  return !Number.isNaN(left) && !Number.isNaN(right) && right > left
+}
+
 function formatRemaining(endsAt: string, now: number): string | null {
   const end = Date.parse(endsAt)
   if (Number.isNaN(end)) return null
@@ -102,6 +110,8 @@ export default function LotPageClient({
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const [now, setNow] = useState<number | null>(null)
+  const [visitEnd, setVisitEnd] = useState(initialLot.endsAt)
+  const [extended, setExtended] = useState(false)
   const lotRef = useRef(lot)
   const viewerRef = useRef(viewerId)
   const leadingRef = useRef(leading)
@@ -131,13 +141,22 @@ export default function LotPageClient({
     setPosition(positionRef.current)
     setAmount(reaisInput(bidFloorCents(initialLot)))
     setError(null)
-  } else if (seen !== signature) {
-    setSeen(signature)
-    setLot((current) => {
-      const next = mergeLiveLot(current, initialLot)
-      lotRef.current = next
-      return next
-    })
+    setVisitEnd(initialLot.endsAt)
+    setExtended(false)
+  } else if (lot.endsAt !== visitEnd || seen !== signature) {
+    if (lot.endsAt !== visitEnd) {
+      if (endsMoved(visitEnd, lot.endsAt)) setExtended(true)
+      setVisitEnd(lot.endsAt)
+    }
+
+    if (seen !== signature) {
+      setSeen(signature)
+      setLot((current) => {
+        const next = mergeLiveLot(current, initialLot)
+        lotRef.current = next
+        return next
+      })
+    }
   }
 
   applyRef.current = (event) => {
@@ -291,6 +310,7 @@ export default function LotPageClient({
           <BidConsole
             lot={lot}
             remaining={remaining}
+            extended={extended && lot.status === "live"}
             open={open}
             position={position}
             viewerId={viewerId}

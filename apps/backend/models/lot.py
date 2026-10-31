@@ -114,8 +114,54 @@ class LotCreate(BaseModel):
         return self
 
 
+class LotUpdate(BaseModel):
+    title: str
+    starts_at: datetime
+    ends_at: datetime
+    minimum_bid: int
+    increment: int
+
+    @field_validator('title')
+    @classmethod
+    def required_title(cls, value: str) -> str:
+        return LotCreate.title_length(LotCreate.required_text(value))
+
+    @field_validator('starts_at', 'ends_at')
+    @classmethod
+    def as_utc(cls, value: datetime) -> datetime:
+        return LotCreate.as_utc(value)
+
+    @field_validator('minimum_bid', mode = 'before')
+    @classmethod
+    def positive_bid(cls, value) -> int:
+        return LotCreate.positive_bid(value)
+
+    @field_validator('increment', mode = 'before')
+    @classmethod
+    def positive_increment(cls, value) -> int:
+        if value is None:
+            raise ValueError('incremento deve ser maior que zero')
+
+        return LotCreate.positive_increment(value)
+
+    @model_validator(mode = 'after')
+    def ends_after_start(self):
+        if self.ends_at <= self.starts_at:
+            raise ValueError('fim deve ser depois do início')
+        return self
+
+
 class LotResult(BaseModel):
     winner: int | None = None
+    amount: int | None = None
+
+    @field_validator('amount', mode = 'before')
+    @classmethod
+    def amount_cents(cls, value) -> int | None:
+        if value is None:
+            return None
+
+        return integer_cents(value)
 
 
 class AuctioneerLot(BaseModel):
@@ -218,3 +264,36 @@ class BidCreate(BaseModel):
 
 class PlacedBid(PublicLot):
     leading: bool
+
+
+class LotReceipt(BaseModel):
+    lot_id: int
+    title: str
+    image_url: str
+    amount: int
+    winner: int | None = None
+    settled_at: datetime
+
+    @field_validator('amount', mode = 'before')
+    @classmethod
+    def amount_cents(cls, value) -> int:
+        return integer_cents(value)
+
+    @field_validator('winner', mode = 'before')
+    @classmethod
+    def winner_id(cls, value) -> int | None:
+        if value is None:
+            return None
+
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise ValueError('vencedor inválido')
+
+        return value
+
+    @field_validator('settled_at')
+    @classmethod
+    def utc(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
+            return value.replace(tzinfo = timezone.utc)
+
+        return value

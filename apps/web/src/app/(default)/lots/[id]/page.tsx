@@ -176,7 +176,7 @@ function LotError() {
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-8">
       <Link
-        href="/lots"
+        href="/"
         className="inline-flex w-fit items-center gap-1.5 text-[0.7rem] tracking-[0.16em] text-muted-foreground uppercase hover:text-primary"
       >
         <ArrowLeft className="size-3.5" aria-hidden />

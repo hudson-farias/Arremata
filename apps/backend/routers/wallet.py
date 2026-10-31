@@ -4,6 +4,7 @@ from database.users import UsersORM
 from models.wallet import DepositIn, WalletOut
 from routers import session_owner
 from services.bids import committed_cents
+from services.settlement import settle_due
 
 
 router = APIRouter(tags = ['wallet'])
@@ -17,6 +18,7 @@ async def wallet_of(user_id: int, total: int) -> dict:
 
 @router.get('/wallet', response_model = WalletOut)
 async def read_wallet(user_id: int = Depends(session_owner)):
+    await settle_due()
     user = await UsersORM().find_one(id = user_id)
 
     if not user:
@@ -27,6 +29,7 @@ async def read_wallet(user_id: int = Depends(session_owner)):
 
 @router.post('/wallet/deposits', response_model = WalletOut)
 async def deposit(body: DepositIn, user_id: int = Depends(session_owner)):
+    await settle_due()
     users = UsersORM()
     balance = await users.add_balance(user_id, body.amount)
 

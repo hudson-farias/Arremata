@@ -55,6 +55,10 @@ class ApiServer {
     return this.request('PUT', endpoint, body)
   }
 
+  patch(endpoint: string, body: unknown): Promise<Response> {
+    return this.request('PATCH', endpoint, body)
+  }
+
   delete(endpoint: string): Promise<Response> {
     return this.request('DELETE', endpoint)
   }

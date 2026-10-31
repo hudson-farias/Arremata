@@ -2,11 +2,12 @@ from fastapi import APIRouter, Cookie, Depends, HTTPException, Path, Query, WebS
 
 from database.lots import LotsORM
 from database.users import UsersORM
-from models.lot import BidCreate, PlacedBid, PublicLot
+from models.lot import BidCreate, LotReceipt, PlacedBid, PublicLot
 from routers import session_owner
 from services.bids import BidError, place_bid
 from services.live import encode_lot, lot_rooms
-from services.lots import leading_bidder, now_utc, public_lot, status_of, summaries_for
+from services.lots import RECENT_LIMIT, leading_bidder, now_utc, public_lot, status_of, summaries_for
+from services.settlement import settle_due, settlement_for
 
 
 router = APIRouter(tags = ['lots'])
@@ -25,6 +26,7 @@ async def list_lots(status: str = 'live'):
     if order is None:
         raise HTTPException(status_code = 400, detail = 'status inválido')
 
+    await settle_due()
     field, newest_first = order
     moment = now_utc()
     rows = await LotsORM().find_many()
@@ -43,13 +45,39 @@ async def list_lots(status: str = 'live'):
 
 
 @router.get('/lots/{lot_id}', response_model = PublicLot)
-async def read_public_lot(lot_id: int = Path(gt = 0)):
+async def read_public_lot(lot_id: int = Path(gt = 0), full: bool = Query(default = False)):
+    await settle_due()
     lot = await LotsORM().find_one(id = lot_id)
 
     if not lot or status_of(lot) == 'cancelled':
         raise HTTPException(status_code = 404, detail = 'lote não encontrado')
 
-    return await public_lot(lot, include_bids = True)
+    return await public_lot(lot, include_bids = True, bid_limit = None if full else RECENT_LIMIT)
+
+
+@router.get('/lots/{lot_id}/receipt', response_model = LotReceipt)
+async def read_lot_receipt(lot_id: int = Path(gt = 0)):
+    lot = await LotsORM().find_one(id = lot_id)
+
+    if not lot or status_of(lot) == 'cancelled':
+        raise HTTPException(status_code = 404, detail = 'lote não encontrado')
+
+    await settle_due()
+    settlement = await settlement_for(lot.id)
+
+    if settlement is None:
+        raise HTTPException(status_code = 404, detail = 'lote não encontrado')
+
+    winner = settlement['winner']
+
+    return {
+        'lot_id': int(lot.id),
+        'title': lot.title,
+        'image_url': lot.image_url,
+        'amount': int(settlement['amount']),
+        'winner': None if winner is None else int(winner),
+        'settled_at': settlement['settled_at'],
+    }
 
 
 def viewer_from_token(*tokens: str | None) -> int | None:

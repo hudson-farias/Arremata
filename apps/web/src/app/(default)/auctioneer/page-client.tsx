@@ -30,12 +30,23 @@ export default function AuctioneerPageClient({
   searchCards,
   createLot,
   cancelLot,
+  updateLot,
 }: {
   initialLots: LotsPayload
   listLots: () => Promise<LotsPayload>
   searchCards: (query: string) => Promise<{ status: number; cards: CatalogCard[] }>
   createLot: (body: LotDraft) => Promise<{ status: number }>
   cancelLot: (id: string) => Promise<{ status: number }>
+  updateLot: (
+    id: string,
+    body: {
+      title: string
+      starts_at: string
+      ends_at: string
+      minimum_bid: number
+      increment: number
+    },
+  ) => Promise<{ status: number }>
 }) {
   const [query, setQuery] = useState("")
   const [queryError, setQueryError] = useState<string | null>(null)
@@ -112,7 +123,13 @@ export default function AuctioneerPageClient({
           />
           <LotForm card={selected} createLot={createLot} onCreated={() => setRevision((current) => current + 1)} />
         </div>
-        <MyLots revision={revision} initialLots={initialLots} listLots={listLots} cancelLot={cancelLot} />
+        <MyLots
+          revision={revision}
+          initialLots={initialLots}
+          listLots={listLots}
+          cancelLot={cancelLot}
+          updateLot={updateLot}
+        />
       </main>
     </div>
   )

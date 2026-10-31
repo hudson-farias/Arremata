@@ -36,7 +36,7 @@ Checklist para confirmar no fim do desenvolvimento.
 - [x] API externa: vitrine, sala, auditoria e comprovante seguem se a API cair.
 - [x] Lance só em lote ao vivo; primeiro >= lance inicial; seguintes >= atual + incremento mínimo; líder não cobre o próprio lance.
 - [x] Saldo disponível = total - comprometido; ao liderar compromete; ao ser superado volta na hora.
-- [ ] Anti-sniping: lance nos últimos 2 minutos prorroga o fim em +2 minutos.
+- [x] Anti-sniping: lance nos últimos 2 minutos prorroga o fim em +2 minutos.
 - [ ] Liquidação: debita vencedor, credita leiloeiro, gera comprovante; sem lances fecha sem vencedor.
 - [ ] Histórico à prova de adulteração, inclusive alteração direta no banco. A técnica escolhida fica explicada neste README.
 - [] Auditoria e comprovante identificam licitantes sem dados pessoais.

@@ -8,7 +8,8 @@ from database.bids import BidsORM
 from database.lots import LotsORM
 from database.users import UsersORM
 from services.live import publish_lot
-from services.lots import aware, bid_summary, leading_bidder, now_utc, public_lot, status_of
+from services.lots import aware, bid_summary, extend_ends_at, leading_bidder, now_utc, public_lot, status_of
+from services.settlement import settle_due
 
 
 class BidError(Exception):
@@ -56,6 +57,8 @@ async def committed_cents(user_id: int, moment: datetime | None = None, db: Asyn
 
 
 async def place_bid(lot_id: int, bidder_id: int, amount: int) -> dict:
+    await settle_due()
+
     async with Session() as db:
         db.expire_on_flush = False
         lot = (
@@ -82,7 +85,8 @@ async def place_bid(lot_id: int, bidder_id: int, amount: int) -> dict:
         if lot.owner_id == bidder_id:
             raise BidError(403, 'não é possível dar lance no próprio lote')
 
-        status = status_of(lot)
+        moment = now_utc()
+        status = status_of(lot, moment)
 
         if status == 'scheduled':
             raise BidError(409, 'o pregão ainda não começou')
@@ -103,19 +107,21 @@ async def place_bid(lot_id: int, bidder_id: int, amount: int) -> dict:
         elif amount < int(current) + int(lot.increment_cents):
             raise BidError(409, 'lance abaixo do mínimo')
 
-        available = int(user.balance_cents) - await committed_cents(bidder_id, db = db)
+        available = int(user.balance_cents) - await committed_cents(bidder_id, moment, db = db)
 
         if available < amount:
             raise BidError(409, 'saldo insuficiente')
+
+        extend_ends_at(lot, moment)
 
         await db.execute(insert(BidsORM).values(
             lot_id = lot.id,
             bidder_id = bidder_id,
             amount_cents = amount,
-            created_at = now_utc(),
+            created_at = moment,
         ))
 
-        payload = await public_lot(lot, include_bids = True, db = db)
+        payload = await public_lot(lot, moment, include_bids = True, db = db)
         leader_id = await leading_bidder(lot.id, db)
         payload['leading'] = leader_id == bidder_id
         await db.commit()

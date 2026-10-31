@@ -30,7 +30,15 @@ function StatusBadge({ status }: { status: ShowcaseStatus }) {
   )
 }
 
-function ClockReadout({ lot, remaining }: { lot: ShowcaseLot; remaining: string | null }) {
+function ClockReadout({
+  lot,
+  remaining,
+  extended,
+}: {
+  lot: ShowcaseLot
+  remaining: string | null
+  extended: boolean
+}) {
   if (lot.status === "closed" || remaining === "Encerrado") {
     return (
       <p className="flex flex-col items-end gap-0.5 text-right">
@@ -62,6 +70,7 @@ function ClockReadout({ lot, remaining }: { lot: ShowcaseLot; remaining: string 
         <Clock className="size-3.5 text-primary" aria-hidden />
         {remaining ?? "—"}
       </span>
+      {extended ? <span className="text-[0.65rem] text-muted-foreground">Prorrogado +2 min</span> : null}
     </p>
   )
 }
@@ -69,6 +78,7 @@ function ClockReadout({ lot, remaining }: { lot: ShowcaseLot; remaining: string 
 export function BidConsole({
   lot,
   remaining,
+  extended,
   open,
   position,
   viewerId,
@@ -80,6 +90,7 @@ export function BidConsole({
 }: {
   lot: ShowcaseLot
   remaining: string | null
+  extended: boolean
   open: boolean
   position: "winning" | "outbid" | null
   viewerId: number | null
@@ -99,7 +110,7 @@ export function BidConsole({
       <CardContent className="flex flex-col gap-6">
         <div className="flex items-start justify-between gap-4 border-b border-border pb-4">
           <StatusBadge status={lot.status} />
-          <ClockReadout lot={lot} remaining={remaining} />
+          <ClockReadout lot={lot} remaining={remaining} extended={extended} />
         </div>
 
         <div className="flex flex-col gap-2 rounded-lg border border-border bg-background p-4">

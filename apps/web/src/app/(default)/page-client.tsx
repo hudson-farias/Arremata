@@ -209,13 +209,6 @@ export default function LotsPageClient({
       />
 
       <main className="relative mx-auto flex w-full max-w-[1600px] flex-1 flex-col gap-8 px-6 py-8 lg:px-12">
-        <div className="flex flex-col gap-2">
-          <h1 className={cn(displayFont, "text-4xl tracking-tight text-primary")}>Lotes</h1>
-          <p className="max-w-2xl text-sm text-muted-foreground">
-            Cartas Pokémon TCG em pregão. Ao vivo, agendados e encerrados.
-          </p>
-        </div>
-
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <ToggleGroup
             type="single"
