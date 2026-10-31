@@ -21,6 +21,7 @@ type LotDraft = {
   starts_at: string
   ends_at: string
   minimum_bid: number
+  increment: number
 }
 
 export default function AuctioneerPageClient({

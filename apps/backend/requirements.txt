@@ -11,3 +11,4 @@ redis==5.2.1
 slowapi==0.1.9
 SQLAlchemy==2.0.38
 uvicorn==0.34.0
+websockets==14.2

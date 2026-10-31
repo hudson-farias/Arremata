@@ -3,6 +3,8 @@ import { Clock, Gavel } from "lucide-react"
 
 import {
   bidCountLabel,
+  bidFloorLabel,
+  bidKey,
   formatLotDate,
   formatLotMoney,
   statusLabel,
@@ -14,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group"
+import { Spinner } from "@/components/ui/spinner"
 
 function StatusBadge({ status }: { status: ShowcaseStatus }) {
   const variant = status === "live" ? "default" : status === "closed" ? "secondary" : "outline"
@@ -67,24 +70,29 @@ export function BidConsole({
   lot,
   remaining,
   open,
+  position,
+  viewerId,
   amount,
   error,
+  pending,
   onAmountChange,
   onSubmit,
 }: {
   lot: ShowcaseLot
   remaining: string | null
   open: boolean
+  position: "winning" | "outbid" | null
+  viewerId: number | null
   amount: string
   error: string | null
+  pending: boolean
   onAmountChange: (value: string) => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
 }) {
   const hasCurrent = lot.currentBid != null
   const shown = hasCurrent ? lot.currentBid : lot.minimumBid
-  const reference = lot.currentBid ?? lot.minimumBid
-  const hintId = !open || reference != null ? "lot-bid-hint" : undefined
-  const describedBy = [error ? "lot-bid-error" : null, hintId].filter(Boolean).join(" ") || undefined
+  const hint = open ? bidFloorLabel(lot) : null
+  const describedBy = [error ? "lot-bid-error" : null, hint || !open ? "lot-bid-hint" : null].filter(Boolean).join(" ") || undefined
 
   return (
     <Card>
@@ -100,6 +108,8 @@ export function BidConsole({
           </span>
           <p className="font-mono text-3xl text-primary">{formatLotMoney(shown)}</p>
           <p className="text-sm text-muted-foreground">{bidCountLabel(lot.bidCount)}</p>
+          {position === "winning" ? <p className="text-sm font-medium text-primary">Ganhando</p> : null}
+          {position === "outbid" ? <p className="text-sm font-medium text-muted-foreground">Superado</p> : null}
         </div>
 
         <form className="flex flex-col gap-3" onSubmit={onSubmit}>
@@ -117,20 +127,18 @@ export function BidConsole({
                 min="0.01"
                 step="0.01"
                 value={amount}
-                disabled={!open}
+                disabled={!open || pending}
                 aria-invalid={error ? true : undefined}
                 aria-describedby={describedBy}
                 onChange={(event) => onAmountChange(event.target.value)}
               />
             </InputGroup>
-            {open && reference != null ? (
-              <FieldDescription id="lot-bid-hint">Precisa ser maior que {formatLotMoney(reference)}.</FieldDescription>
-            ) : null}
+            {hint ? <FieldDescription id="lot-bid-hint">{hint}</FieldDescription> : null}
             {error ? <FieldError id="lot-bid-error">{error}</FieldError> : null}
           </Field>
 
-          <Button type="submit" className="h-11 w-full" disabled={!open}>
-            <Gavel data-icon="inline-start" />
+          <Button type="submit" className="h-11 w-full" disabled={!open || pending}>
+            {pending ? <Spinner data-icon="inline-start" /> : <Gavel data-icon="inline-start" />}
             Dar lance
           </Button>
 
@@ -140,6 +148,26 @@ export function BidConsole({
             </p>
           )}
         </form>
+
+        {lot.bids.length > 0 ? (
+          <div className="flex flex-col gap-2 border-t border-border pt-4">
+            <h2 className="text-[0.7rem] tracking-[0.16em] text-muted-foreground uppercase">Lances</h2>
+            <ul className="flex max-h-72 flex-col gap-2 overflow-y-auto overscroll-y-contain pr-1">
+              {lot.bids.map((bid) => (
+                <li
+                  key={bidKey(bid)}
+                  className="grid grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)_auto] items-baseline gap-3 text-sm"
+                >
+                  <span className="font-mono text-foreground">{formatLotMoney(bid.amount)}</span>
+                  <span className="text-muted-foreground">{formatLotDate(bid.createdAt) ?? "—"}</span>
+                  <span className="text-right text-foreground">
+                    {viewerId != null && bid.bidderId === viewerId ? "Você" : `Licitante #${bid.bidderId}`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   )

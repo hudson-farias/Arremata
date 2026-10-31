@@ -15,4 +15,5 @@ class LotsORM(Base):
     starts_at = Column(DateTime(timezone = True), nullable = False)
     ends_at = Column(DateTime(timezone = True), nullable = False)
     minimum_bid = Column(BigInteger, nullable = False)
+    increment_cents = Column(BigInteger, nullable = False, default = 10000, server_default = '10000')
     cancelled_at = Column(DateTime(timezone = True), nullable = True)

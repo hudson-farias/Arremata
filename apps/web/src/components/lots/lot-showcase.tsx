@@ -1,8 +1,9 @@
 import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Shield } from "lucide-react"
 
 import { CardPortrait } from "@/components/auctioneer/card-portrait"
 import { collectorLine, type ShowcaseLot } from "@/components/lots/model"
+import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 const displayFont = "[font-family:Georgia,Palatino,'Times_New_Roman',serif]"
@@ -20,10 +21,18 @@ export function LotShowcase({ lot }: { lot: ShowcaseLot }) {
           <ArrowLeft className="size-3.5" aria-hidden />
           Voltar à vitrine
         </Link>
-        <p className="text-[0.7rem] tracking-[0.16em] text-primary uppercase">Lote #{lot.id}</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-[0.7rem] tracking-[0.16em] text-primary uppercase">Lote #{lot.id}</p>
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/lots/${lot.id}/audit`}>
+              <Shield data-icon="inline-start" aria-hidden />
+              Auditoria
+            </Link>
+          </Button>
+        </div>
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-6">
+      <div className="rounded-lg border border-border bg-card p-6">
         <div className="mx-auto w-full max-w-sm overflow-hidden rounded-lg border border-border bg-muted">
           <CardPortrait
             key={lot.imageUrl ?? lot.id}

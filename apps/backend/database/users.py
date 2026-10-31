@@ -3,14 +3,15 @@ from hmac import compare_digest, new as hmac_new
 from secrets import token_bytes
 from time import time
 
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import BigInteger, Column, Integer, String, update
 
-from database import Base
+from database import Base, Session
 from env import TOKEN_SECRET
 
 
 ITERATIONS = 600000
 ALGORITHM = 'pbkdf2_sha256'
+MAX_BALANCE_CENTS = 999999999999
 
 
 class UsersORM(Base):
@@ -20,6 +21,7 @@ class UsersORM(Base):
     id = Column(Integer, primary_key = True, index = True)
     email = Column(String(255), nullable = False, unique = True)
     password = Column(String(255), nullable = False)
+    balance_cents = Column(BigInteger, nullable = False, default = 0, server_default = '0')
 
     def hash_password(self, password: str) -> str:
         salt = token_bytes(16)
@@ -73,3 +75,23 @@ class UsersORM(Base):
             return None
 
         return user_id
+
+    async def add_balance(self, user_id: int, amount: int) -> int | None:
+        async with Session() as db:
+            balance = self.__class__.balance_cents
+            stmt = (
+                update(self.__class__)
+                .where(self.__class__.id == user_id)
+                .where(balance + amount <= MAX_BALANCE_CENTS)
+                .values(balance_cents = balance + amount)
+                .returning(balance)
+                .execution_options(synchronize_session = False)
+            )
+            result = await db.execute(stmt)
+            updated = result.scalar_one_or_none()
+
+            if updated is None:
+                return None
+
+            await db.commit()
+            return int(updated)

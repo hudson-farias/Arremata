@@ -57,7 +57,7 @@ function DefaultCharizard() {
       <Card>
         <CardContent className="grid items-center gap-5 sm:grid-cols-[10.75rem_minmax(0,1fr)]">
           <div className="relative mx-auto w-40 sm:w-full">
-            <div aria-hidden className="absolute -inset-2 rounded-2xl bg-primary/20 blur-xl" />
+            <div aria-hidden className="absolute -inset-2 rounded-lg bg-primary/20 blur-xl" />
             <img
               src="/catalog/charizard-1st-psa10.jpg"
               alt="Charizard 1st Edition Shadowless, PSA 10 Gem Mint, em slab"

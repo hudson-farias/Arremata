@@ -9,7 +9,7 @@ export default function HomePage() {
           Next.js no front e FastAPI na API. O Postgres sobe pelo compose em infrastructure.
         </p>
       </div>
-      <Button className="w-fit">Começar</Button>
+      <Button className="w-fit rounded-[4px]">Começar</Button>
     </main>
   )
 }

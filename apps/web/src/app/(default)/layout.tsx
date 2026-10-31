@@ -3,27 +3,53 @@ import { LogOut, Shield } from "lucide-react"
 import type { ReactNode } from "react"
 
 import { API } from "@/api/server"
+import { DepositDialog } from "@/components/site/deposit-dialog"
 import { logout } from "@/components/site/logout"
 import { ThemeToggle } from "@/components/theme/theme-toggle"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { formatCents } from "@/lib/money"
+import { formatCents, parseCents } from "@/lib/money"
 import { cn } from "@/lib/utils"
 
 const displayFont = "[font-family:Georgia,Palatino,'Times_New_Roman',serif]"
 
-const walletCents = 0
+type Wallet = {
+  total: number
+  committed: number
+  available: number
+}
 
-const wallet = [
-  { label: "Saldo total", cents: walletCents },
-  { label: "Comprometido", cents: walletCents },
-  { label: "Disponível", cents: walletCents },
-] as const
+const emptyWallet: Wallet = { total: 0, committed: 0, available: 0 }
 
+async function loadWallet(): Promise<Wallet> {
+  try {
+    const response = await API.get("/wallet")
+    if (!response.ok) return emptyWallet
+
+    const payload: unknown = await response.json()
+    if (typeof payload !== "object" || payload === null) return emptyWallet
+
+    const record = payload as Record<string, unknown>
+    const total = parseCents(record.total)
+    const committed = parseCents(record.committed)
+    const available = parseCents(record.available)
+
+    if (total == null || committed == null || available == null) return emptyWallet
+    return { total, committed, available }
+  } catch {
+    return emptyWallet
+  }
+}
 
 export default async function DefaultLayout({ children }: { children: ReactNode }) {
   const signedIn = (await API.isAuthenticated()) && (await API.verifyAuthenticated())
+  const wallet = signedIn ? await loadWallet() : emptyWallet
+  const balances = [
+    { label: "Saldo total", cents: wallet.total },
+    { label: "Comprometido", cents: wallet.committed },
+    { label: "Disponível", cents: wallet.available },
+  ]
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -35,7 +61,7 @@ export default async function DefaultLayout({ children }: { children: ReactNode 
               Arremata
             </Link>
             <Separator orientation="vertical" className="hidden h-6 w-px md:block" />
-            <Badge variant="outline">
+            <Badge variant="outline" className="rounded-[4px]">
               <span className="size-1.5 animate-pulse rounded-full bg-primary" aria-hidden />
               Custódia blindada
             </Badge>
@@ -44,18 +70,18 @@ export default async function DefaultLayout({ children }: { children: ReactNode 
           <div className="flex flex-wrap items-center gap-3">
             {signedIn ? (
               <>
-                <dl className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-border px-3 py-1.5">
-                  {wallet.map((item) => (
+                <dl className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-[4px] border border-border px-3 py-1.5">
+                  {balances.map((item) => (
                     <div key={item.label} className="flex flex-col">
                       <dt className="text-[0.65rem] tracking-[0.12em] text-muted-foreground uppercase">{item.label}</dt>
                       <dd className="text-sm text-primary">{formatCents(item.cents)}</dd>
                     </div>
                   ))}
                 </dl>
-                <Button type="button">Depositar</Button>
+                <DepositDialog />
                 <ThemeToggle />
                 <form action={logout}>
-                  <Button type="submit" variant="ghost">
+                  <Button type="submit" variant="ghost" className="rounded-[4px]">
                     <LogOut data-icon="inline-start" />
                     Sair
                   </Button>
@@ -64,7 +90,7 @@ export default async function DefaultLayout({ children }: { children: ReactNode 
             ) : (
               <>
                 <ThemeToggle />
-                <Button asChild>
+                <Button asChild className="rounded-[4px]">
                   <Link href="/login">Entrar</Link>
                 </Button>
               </>

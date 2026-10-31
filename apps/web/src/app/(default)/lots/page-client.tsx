@@ -76,7 +76,7 @@ function StatusBadge({ status }: { status: ShowcaseStatus }) {
   const variant = status === "live" ? "default" : status === "closed" ? "secondary" : "outline"
 
   return (
-    <Badge variant={variant}>
+    <Badge variant={variant} className="rounded-[4px]">
       {status === "live" ? <span className="size-1.5 animate-pulse rounded-full bg-primary-foreground" aria-hidden /> : null}
       {status === "scheduled" ? <span className="size-1.5 rounded-full bg-primary" aria-hidden /> : null}
       {statusLabel(status)}
@@ -117,9 +117,9 @@ function LotCard({ lot, now }: { lot: ShowcaseLot; now: number | null }) {
     <li>
       <Link
         href={`/lots/${lot.id}`}
-        className="block h-full rounded-xl focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="block h-full rounded-[4px] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
       >
-        <Card className="h-full pt-0">
+        <Card className="h-full rounded-[4px] pt-0">
           <div className="overflow-hidden bg-muted">
             <CardPortrait key={lot.imageUrl ?? lot.id} src={lot.imageUrl} alt="" className="aspect-[3/4] w-full object-contain" />
           </div>
@@ -254,22 +254,22 @@ export default function LotsPageClient({
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" role="status" aria-live="polite">
             <span className="sr-only">Carregando lotes</span>
             {Array.from({ length: 8 }, (_, index) => (
-              <Skeleton key={index} className="h-96 rounded-xl" />
+              <Skeleton key={index} className="h-96 rounded-[4px]" />
             ))}
           </div>
         ) : null}
 
         {state === "error" ? (
-          <Empty className="border">
+          <Empty className="rounded-[4px] border">
             <EmptyHeader>
-              <EmptyMedia variant="icon">
+              <EmptyMedia variant="icon" className="rounded-[4px]">
                 <Gavel />
               </EmptyMedia>
               <EmptyTitle>Não foi possível carregar os lotes</EmptyTitle>
               <EmptyDescription>A vitrine continua no ar. Tente de novo em instantes.</EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
-              <Button type="button" variant="outline" onClick={() => void load(status)}>
+              <Button type="button" variant="outline" className="rounded-[4px]" onClick={() => void load(status)}>
                 Tentar novamente
               </Button>
             </EmptyContent>
@@ -277,9 +277,9 @@ export default function LotsPageClient({
         ) : null}
 
         {state === "empty" ? (
-          <Empty className="border">
+          <Empty className="rounded-[4px] border">
             <EmptyHeader>
-              <EmptyMedia variant="icon">
+              <EmptyMedia variant="icon" className="rounded-[4px]">
                 <Gavel />
               </EmptyMedia>
               <EmptyTitle>{emptyCopy[status].title}</EmptyTitle>
@@ -289,9 +289,9 @@ export default function LotsPageClient({
         ) : null}
 
         {state === "ready" && visible.length === 0 ? (
-          <Empty className="border">
+          <Empty className="rounded-[4px] border">
             <EmptyHeader>
-              <EmptyMedia variant="icon">
+              <EmptyMedia variant="icon" className="rounded-[4px]">
                 <SearchX />
               </EmptyMedia>
               <EmptyTitle>Nenhuma carta encontrada</EmptyTitle>

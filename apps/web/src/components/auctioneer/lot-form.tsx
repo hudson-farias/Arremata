@@ -8,7 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
-import { Field, FieldError, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field"
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group"
 import { Spinner } from "@/components/ui/spinner"
@@ -21,11 +21,15 @@ import { reaisToCents } from "@/lib/money"
 
 const displayFont = "[font-family:Georgia,Palatino,'Times_New_Roman',serif]"
 
+const defaultIncrementCents = 10000
+const maxCents = 999999999999
+
 type FormErrors = {
   title?: string
   starts?: string
   ends?: string
   minimum?: string
+  increment?: string
   form?: string
 }
 
@@ -41,6 +45,7 @@ type LotDraft = {
   starts_at: string
   ends_at: string
   minimum_bid: number
+  increment: number
 }
 
 type LotFormProps = {
@@ -78,6 +83,7 @@ export function LotForm({ card, onCreated, createLot }: LotFormProps) {
   const [startsAt, setStartsAt] = useState("")
   const [endsAt, setEndsAt] = useState("")
   const [minimum, setMinimum] = useState("")
+  const [increment, setIncrement] = useState("")
   const [errors, setErrors] = useState<FormErrors>({})
   const [pending, setPending] = useState(false)
 
@@ -88,6 +94,7 @@ export function LotForm({ card, onCreated, createLot }: LotFormProps) {
     setStartsAt(schedule.start)
     setEndsAt(schedule.end)
     setMinimum("")
+    setIncrement("")
     setErrors({})
   }, [card])
 
@@ -100,6 +107,7 @@ export function LotForm({ card, onCreated, createLot }: LotFormProps) {
     const startIso = toIso(startsAt)
     const endIso = toIso(endsAt)
     const minimumBid = reaisToCents(Number(minimum))
+    let incrementCents = defaultIncrementCents
     const imageUrl = cardImage(card)
 
     if (!trimmedTitle) nextErrors.title = "Informe o título do lote."
@@ -110,6 +118,12 @@ export function LotForm({ card, onCreated, createLot }: LotFormProps) {
     }
     if (minimumBid == null) {
       nextErrors.minimum = "Informe um lance mínimo maior que zero."
+    }
+    if (increment.trim()) {
+      const parsed = reaisToCents(Number(increment))
+      if (parsed == null) nextErrors.increment = "Informe um incremento maior que zero."
+      else if (parsed > maxCents) nextErrors.increment = "O incremento passa do teto."
+      else incrementCents = parsed
     }
     if (!imageUrl) nextErrors.form = "Esta carta não tem imagem no catálogo."
 
@@ -134,6 +148,7 @@ export function LotForm({ card, onCreated, createLot }: LotFormProps) {
         starts_at: startIso,
         ends_at: endIso,
         minimum_bid: minimumBid,
+        increment: incrementCents,
       })
 
       if (response.status === 401) {
@@ -177,7 +192,7 @@ export function LotForm({ card, onCreated, createLot }: LotFormProps) {
           <CardContent>
             <div className="grid gap-6 md:grid-cols-12">
               <figure className="flex flex-col gap-2 md:col-span-5">
-                <div className="overflow-hidden rounded-xl border border-border bg-background p-2">
+                <div className="overflow-hidden rounded-lg border border-border bg-background p-2">
                   <CardPortrait
                     key={cardImage(card) ?? card.id}
                     src={cardImage(card)}
@@ -260,7 +275,7 @@ export function LotForm({ card, onCreated, createLot }: LotFormProps) {
                   </FieldGroup>
                 </FieldSet>
 
-                <FieldGroup>
+                <FieldGroup className="grid gap-4 sm:grid-cols-2">
                   <Field data-invalid={errors.minimum ? true : undefined}>
                     <FieldLabel htmlFor="lot-minimum">Lance mínimo</FieldLabel>
                     <InputGroup className="h-11">
@@ -280,6 +295,26 @@ export function LotForm({ card, onCreated, createLot }: LotFormProps) {
                       />
                     </InputGroup>
                     {errors.minimum ? <FieldError>{errors.minimum}</FieldError> : null}
+                  </Field>
+                  <Field data-invalid={errors.increment ? true : undefined}>
+                    <FieldLabel htmlFor="lot-increment">Incremento</FieldLabel>
+                    <InputGroup className="h-11">
+                      <InputGroupAddon>
+                        <InputGroupText>R$</InputGroupText>
+                      </InputGroupAddon>
+                      <InputGroupInput
+                        id="lot-increment"
+                        type="number"
+                        inputMode="decimal"
+                        min="0.01"
+                        step="0.01"
+                        value={increment}
+                        placeholder="100.00"
+                        aria-invalid={errors.increment ? true : undefined}
+                        onChange={(event) => setIncrement(event.target.value)}
+                      />
+                    </InputGroup>
+                    {errors.increment ? <FieldError>{errors.increment}</FieldError> : null}
                   </Field>
                 </FieldGroup>
               </div>

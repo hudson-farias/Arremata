@@ -4,6 +4,7 @@ from pydantic import BaseModel, field_validator, model_validator
 
 
 MAX_BID_CENTS = 999999999999
+DEFAULT_INCREMENT_CENTS = 10000
 
 
 def integer_cents(value) -> int:
@@ -39,6 +40,7 @@ class LotCreate(BaseModel):
     starts_at: datetime
     ends_at: datetime
     minimum_bid: int
+    increment: int = DEFAULT_INCREMENT_CENTS
 
     @field_validator('card_id', 'title', 'image_url')
     @classmethod
@@ -89,6 +91,22 @@ class LotCreate(BaseModel):
 
         return value
 
+    @field_validator('increment', mode = 'before')
+    @classmethod
+    def positive_increment(cls, value) -> int:
+        if value is None:
+            return DEFAULT_INCREMENT_CENTS
+
+        value = integer_cents(value)
+
+        if value <= 0:
+            raise ValueError('incremento deve ser maior que zero')
+
+        if value > MAX_BID_CENTS:
+            raise ValueError('incremento inválido')
+
+        return value
+
     @model_validator(mode = 'after')
     def ends_after_start(self):
         if self.ends_at <= self.starts_at:
@@ -110,15 +128,43 @@ class AuctioneerLot(BaseModel):
     starts_at: datetime
     ends_at: datetime
     minimum_bid: int
+    increment: int
     cancelled_at: datetime | None
     status: str
     bid_count: int
     result: LotResult | None
 
-    @field_validator('minimum_bid', mode = 'before')
+    @field_validator('minimum_bid', 'increment', mode = 'before')
     @classmethod
     def bid_cents(cls, value) -> int:
         return integer_cents(value)
+
+
+class PublicBid(BaseModel):
+    amount: int
+    created_at: datetime
+    bidder: int
+
+    @field_validator('amount', mode = 'before')
+    @classmethod
+    def amount_cents(cls, value) -> int:
+        return integer_cents(value)
+
+    @field_validator('bidder', mode = 'before')
+    @classmethod
+    def bidder_id(cls, value) -> int:
+        if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+            raise ValueError('licitante inválido')
+
+        return value
+
+    @field_validator('created_at')
+    @classmethod
+    def utc(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
+            return value.replace(tzinfo = timezone.utc)
+
+        return value
 
 
 class PublicLot(BaseModel):
@@ -126,18 +172,20 @@ class PublicLot(BaseModel):
     title: str
     image_url: str
     minimum_bid: int
+    increment: int
     current_bid: int | None = None
     starts_at: datetime
     ends_at: datetime
     status: str
     bid_count: int
+    bids: list[PublicBid] = []
     attributes: CardAttributes
     set_name: str | None = None
     rarity: str | None = None
     number: str | None = None
     result: LotResult | None = None
 
-    @field_validator('minimum_bid', mode = 'before')
+    @field_validator('minimum_bid', 'increment', mode = 'before')
     @classmethod
     def bid_cents(cls, value) -> int:
         return integer_cents(value)
@@ -149,3 +197,24 @@ class PublicLot(BaseModel):
             return None
 
         return integer_cents(value)
+
+
+class BidCreate(BaseModel):
+    amount: int
+
+    @field_validator('amount', mode = 'before')
+    @classmethod
+    def positive_amount(cls, value) -> int:
+        value = integer_cents(value)
+
+        if value <= 0:
+            raise ValueError('lance deve ser maior que zero')
+
+        if value > MAX_BID_CENTS:
+            raise ValueError('lance inválido')
+
+        return value
+
+
+class PlacedBid(PublicLot):
+    leading: bool

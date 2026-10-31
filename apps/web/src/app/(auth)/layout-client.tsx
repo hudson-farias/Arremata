@@ -36,7 +36,7 @@ function SealRow() {
       {seals.map((seal) => {
         const Icon = seal.icon
         return (
-          <li key={seal.title} className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-3">
+          <li key={seal.title} className="flex items-center gap-2 rounded-[4px] border border-border bg-card px-3 py-3">
             <Icon className="size-4 shrink-0 text-primary" aria-hidden />
             <span className="text-[0.65rem] leading-tight tracking-[0.08em] uppercase">
               <span className="block">{seal.title}</span>
@@ -133,9 +133,9 @@ export default function AuthLayoutClient({
           </div>
         </div>
 
-        <section className="flex h-full flex-col justify-center gap-8 rounded-2xl border border-border bg-card px-8 py-10">
+        <section className="flex h-full flex-col justify-center gap-8 rounded-[4px] border border-border bg-card px-8 py-10">
           <div className="flex flex-col items-center gap-3 text-center">
-            <div className="flex size-14 items-center justify-center rounded-2xl border border-primary/50 text-primary">
+            <div className="flex size-14 items-center justify-center rounded-[4px] border border-primary/50 text-primary">
               <Gavel className="size-6" aria-hidden />
             </div>
             <h1 className={cn(displayFont, "text-4xl tracking-[0.18em] text-primary")}>ARREMATA</h1>

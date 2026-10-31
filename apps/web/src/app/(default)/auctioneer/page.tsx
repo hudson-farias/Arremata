@@ -22,6 +22,7 @@ type LotDraft = {
   starts_at: string
   ends_at: string
   minimum_bid: number
+  increment: number
 }
 
 async function readPayload(response: Response): Promise<unknown> {

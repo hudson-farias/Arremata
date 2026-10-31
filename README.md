@@ -22,7 +22,7 @@ O site abre em http://localhost:3000.
 - [x] `/login` e `/register` — login e registro.
 - [x] `/lots` — vitrine (ao vivo, agendados, encerrados; cancelados fora).
 - [x] `/lots/[id]` — sala ao vivo: lance atual, histórico, posição, contagem regressiva, ganhando/superado, sem reload. Lance recusado: abaixo do mínimo, saldo insuficiente, já está ganhando, lote ainda não começou ou encerrado.
-- [ ] `/lots/[id]/audit` — auditoria pública, sem login: histórico e se está íntegro.
+- [x] `/lots/[id]/audit` — auditoria pública, sem login: histórico e se está íntegro.
 - [x] `/auctioneer` — painel do leiloeiro: busca na API externa, criar lote com imagem, título, atributos, início, fim e lance mínimo, cancelar lote sem lances e encerrado sem vencedor.
 - [ ] `/wins` — lotes em que a pessoa deu lance e os que venceu; comprovante com link público, sem login.
 - [x] Header autenticado — carteira sempre visível (vitrine, sala, arremates e painel do leiloeiro): saldo total, comprometido, disponível e depósito simulado. Sem rota `/wallet`.
@@ -33,13 +33,13 @@ O catálogo externo é a Pokémon TCG API; o Redis cacheia a busca para não rep
 
 Checklist para confirmar no fim do desenvolvimento.
 
-- [ ] API externa: vitrine, sala, auditoria e comprovante seguem se a API cair.
-- [ ] Lance só em lote ao vivo; primeiro >= lance inicial; seguintes >= atual + incremento mínimo; líder não cobre o próprio lance.
-- [ ] Saldo disponível = total - comprometido; ao liderar compromete; ao ser superado volta na hora.
+- [x] API externa: vitrine, sala, auditoria e comprovante seguem se a API cair.
+- [x] Lance só em lote ao vivo; primeiro >= lance inicial; seguintes >= atual + incremento mínimo; líder não cobre o próprio lance.
+- [x] Saldo disponível = total - comprometido; ao liderar compromete; ao ser superado volta na hora.
 - [ ] Anti-sniping: lance nos últimos 2 minutos prorroga o fim em +2 minutos.
 - [ ] Liquidação: debita vencedor, credita leiloeiro, gera comprovante; sem lances fecha sem vencedor.
 - [ ] Histórico à prova de adulteração, inclusive alteração direta no banco. A técnica escolhida fica explicada neste README.
-- [ ] Auditoria e comprovante identificam licitantes sem dados pessoais.
+- [] Auditoria e comprovante identificam licitantes sem dados pessoais.
 
 ## Opcionais
 

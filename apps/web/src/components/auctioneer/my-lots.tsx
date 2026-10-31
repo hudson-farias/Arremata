@@ -216,14 +216,14 @@ export function MyLots({
         ) : null}
 
         {state === "ready" ? (
-          <Table>
-            <TableHeader>
+          <Table containerClassName="max-h-96 overflow-y-auto overscroll-y-contain">
+            <TableHeader className="sticky top-0 z-10 bg-card">
               <TableRow>
-                <TableHead>Lote</TableHead>
-                <TableHead>Edição</TableHead>
-                <TableHead>Lance mínimo</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+                <TableHead className="bg-card">Lote</TableHead>
+                <TableHead className="bg-card">Edição</TableHead>
+                <TableHead className="bg-card">Lance mínimo</TableHead>
+                <TableHead className="bg-card">Status</TableHead>
+                <TableHead className="bg-card text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

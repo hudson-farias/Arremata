@@ -78,7 +78,7 @@ export default function RegisterPageClient({
         <label htmlFor="register-email" className="text-[0.7rem] tracking-[0.16em] text-muted-foreground uppercase">
           Credencial de e-mail
         </label>
-        <div className="flex h-11 items-center gap-2 rounded-lg border border-input bg-input px-3 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
+        <div className="flex h-11 items-center gap-2 rounded-[4px] border border-input bg-input px-3 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
           <Mail className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           <Input
             id="register-email"
@@ -106,7 +106,7 @@ export default function RegisterPageClient({
         <label htmlFor="register-password" className="text-[0.7rem] tracking-[0.16em] text-muted-foreground uppercase">
           Chave de acesso / senha
         </label>
-        <div className="flex h-11 items-center gap-2 rounded-lg border border-input bg-input px-3 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
+        <div className="flex h-11 items-center gap-2 rounded-[4px] border border-input bg-input px-3 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
           <Input
             id="register-password"
             name="password"
@@ -126,6 +126,7 @@ export default function RegisterPageClient({
             type="button"
             variant="ghost"
             size="icon"
+            className="rounded-[4px]"
             aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
             onClick={() => setShowPassword((current) => !current)}
           >
@@ -140,7 +141,7 @@ export default function RegisterPageClient({
         </p>
       ) : null}
 
-      <Button type="submit" disabled={pending} className="h-12 w-full tracking-[0.14em] uppercase">
+      <Button type="submit" disabled={pending} className="h-12 w-full rounded-[4px] tracking-[0.14em] uppercase">
         {pending ? "Criando conta…" : "Criar conta"}
       </Button>
 
