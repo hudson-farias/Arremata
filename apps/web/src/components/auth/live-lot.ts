@@ -1,3 +1,5 @@
+import { parseCents } from "@/lib/money"
+
 export type LotSummary = {
   key: string
   title: string
@@ -43,10 +45,10 @@ function readNumber(value: unknown): number | undefined {
 }
 
 function readMoney(value: unknown): number | undefined {
-  const direct = readNumber(value)
+  const direct = parseCents(value)
   if (direct != null) return direct
   if (!isRecord(value)) return undefined
-  return readNumber(value.amount ?? value.value ?? value.price)
+  return parseCents(value.amount ?? value.value ?? value.price) ?? undefined
 }
 
 function readBool(value: unknown): boolean | undefined {

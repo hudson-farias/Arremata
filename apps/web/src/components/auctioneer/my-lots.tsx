@@ -175,7 +175,6 @@ export function MyLots({
               <CardTitle>
                 <h2 className={cn(displayFont, "text-2xl tracking-tight text-primary")}>Meus lotes</h2>
               </CardTitle>
-              <CardDescription>Status do pregão, lances e cancelamento.</CardDescription>
             </div>
           </div>
           {total != null ? (

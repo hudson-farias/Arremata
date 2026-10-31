@@ -33,7 +33,7 @@ def bid_count(_lot) -> int:
     return 0
 
 
-def current_bid(_lot):
+def current_bid(_lot) -> int | None:
     return None
 
 

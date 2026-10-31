@@ -1,4 +1,3 @@
-import { cookies } from "next/headers"
 import type { Metadata } from "next"
 import { redirect } from "next/navigation"
 
@@ -66,13 +65,6 @@ async function cancelLot(id: string): Promise<{ status: number }> {
   return { status: response.status }
 }
 
-async function logout() {
-  "use server"
-  const jar = await cookies()
-  jar.set("TOKEN", "", { path: "/", maxAge: 0 })
-  jar.set("ISAUTH", "", { path: "/", maxAge: 0 })
-}
-
 export default async function AuctioneerPage() {
   const initialLots = await fetchLots()
 
@@ -87,7 +79,6 @@ export default async function AuctioneerPage() {
       searchCards={searchCards}
       createLot={createLot}
       cancelLot={cancelLot}
-      logout={logout}
     />
   )
 }

@@ -1,3 +1,5 @@
+import { formatCents, parseCents } from "@/lib/money"
+
 export type CatalogCard = {
   id: string
   name: string
@@ -31,8 +33,6 @@ const statusLabels: Record<LotStatus, string> = {
   cancelled: "Cancelado",
 }
 
-const moneyFormat = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" })
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
@@ -58,22 +58,15 @@ function httpUrl(value: unknown): string | null {
 }
 
 function money(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value
-  if (typeof value !== "string") return null
-
-  const raw = value.trim()
-  if (!raw) return null
-
-  const direct = Number(raw)
-  if (Number.isFinite(direct)) return direct
-
-  const normalized = Number(raw.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", "."))
-  return Number.isFinite(normalized) ? normalized : null
+  return parseCents(value)
 }
 
 function count(value: unknown): number {
-  const parsed = money(value)
-  if (parsed == null || parsed < 0) return 0
+  if (typeof value === "number" && Number.isFinite(value) && value >= 0) return Math.floor(value)
+  if (typeof value !== "string" || !value.trim()) return 0
+
+  const parsed = Number(value.trim())
+  if (!Number.isFinite(parsed) || parsed < 0) return 0
   return Math.floor(parsed)
 }
 
@@ -197,7 +190,7 @@ export function closedWithoutWinner(lot: AuctionLot): boolean {
 
 export function formatMoney(value: number | null): string {
   if (value == null) return "—"
-  return moneyFormat.format(value)
+  return formatCents(value)
 }
 
 export function formatCollectorNumber(number: string): string {

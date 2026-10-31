@@ -20,13 +20,12 @@ O site abre em http://localhost:3000.
 ## Front
 
 - [x] `/login` e `/register` — login e registro.
-- [ ] `/lots` — vitrine (ao vivo, agendados, encerrados; cancelados fora).
-- [ ] `/lots/[id]` — sala ao vivo: lance atual, histórico, posição, contagem regressiva, ganhando/superado, sem reload. Lance recusado: abaixo do mínimo, saldo insuficiente, já está ganhando, lote ainda não começou ou encerrado.
+- [x] `/lots` — vitrine (ao vivo, agendados, encerrados; cancelados fora).
+- [x] `/lots/[id]` — sala ao vivo: lance atual, histórico, posição, contagem regressiva, ganhando/superado, sem reload. Lance recusado: abaixo do mínimo, saldo insuficiente, já está ganhando, lote ainda não começou ou encerrado.
 - [ ] `/lots/[id]/audit` — auditoria pública, sem login: histórico e se está íntegro.
 - [x] `/auctioneer` — painel do leiloeiro: busca na API externa, criar lote com imagem, título, atributos, início, fim e lance mínimo, cancelar lote sem lances e encerrado sem vencedor.
-- [ ] `/auctioneer` — o leiloeiro define o incremento mínimo do lote; no encerrado, vê se foi arrematado, por quanto e o total recebido.
 - [ ] `/wins` — lotes em que a pessoa deu lance e os que venceu; comprovante com link público, sem login.
-- [ ] Header autenticado — carteira sempre visível (vitrine, sala, arremates e painel do leiloeiro): saldo total, comprometido, disponível e depósito simulado. Sem rota `/wallet`.
+- [x] Header autenticado — carteira sempre visível (vitrine, sala, arremates e painel do leiloeiro): saldo total, comprometido, disponível e depósito simulado. Sem rota `/wallet`.
 
 ## Back
 

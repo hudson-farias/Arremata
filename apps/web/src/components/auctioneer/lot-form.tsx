@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils"
 import { CardPortrait } from "@/components/auctioneer/card-portrait"
 import { cardImage, defaultLotTitle, formatCollectorNumber, type CatalogCard } from "@/components/auctioneer/model"
 import { auctioneerLogin } from "@/components/auctioneer/requests"
+import { reaisToCents } from "@/lib/money"
 
 const displayFont = "[font-family:Georgia,Palatino,'Times_New_Roman',serif]"
 
@@ -98,7 +99,7 @@ export function LotForm({ card, onCreated, createLot }: LotFormProps) {
     const trimmedTitle = title.trim()
     const startIso = toIso(startsAt)
     const endIso = toIso(endsAt)
-    const minimumBid = Number(minimum)
+    const minimumBid = reaisToCents(Number(minimum))
     const imageUrl = cardImage(card)
 
     if (!trimmedTitle) nextErrors.title = "Informe o título do lote."
@@ -107,12 +108,12 @@ export function LotForm({ card, onCreated, createLot }: LotFormProps) {
     if (startIso && endIso && Date.parse(endIso) <= Date.parse(startIso)) {
       nextErrors.ends = "O fim precisa ser depois do início."
     }
-    if (!Number.isFinite(minimumBid) || minimumBid <= 0) {
+    if (minimumBid == null) {
       nextErrors.minimum = "Informe um lance mínimo maior que zero."
     }
     if (!imageUrl) nextErrors.form = "Esta carta não tem imagem no catálogo."
 
-    if (Object.keys(nextErrors).length > 0 || !startIso || !endIso || !imageUrl) {
+    if (Object.keys(nextErrors).length > 0 || !startIso || !endIso || !imageUrl || minimumBid == null) {
       setErrors(nextErrors)
       return
     }
@@ -167,7 +168,6 @@ export function LotForm({ card, onCreated, createLot }: LotFormProps) {
             <CardTitle>
               <h2 className={cn(displayFont, "text-2xl tracking-tight text-primary")}>Novo lote</h2>
             </CardTitle>
-            <CardDescription>Título, atributos, início, fim e lance mínimo.</CardDescription>
           </div>
         </div>
       </CardHeader>
@@ -185,10 +185,6 @@ export function LotForm({ card, onCreated, createLot }: LotFormProps) {
                     className="aspect-[63/88] w-full rounded-lg"
                   />
                 </div>
-                <figcaption className="flex items-center justify-between text-[0.65rem] tracking-[0.14em] text-muted-foreground uppercase">
-                  <span>Imagem da carta</span>
-                  <span className="text-primary">Catálogo</span>
-                </figcaption>
               </figure>
 
               <div className="flex flex-col gap-4 md:col-span-7">

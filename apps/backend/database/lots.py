@@ -1,4 +1,4 @@
-from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, Numeric, String
+from sqlalchemy import JSON, BigInteger, Column, DateTime, ForeignKey, Integer, String
 
 from database import Base
 
@@ -14,5 +14,5 @@ class LotsORM(Base):
     attributes = Column(JSON, nullable = False)
     starts_at = Column(DateTime(timezone = True), nullable = False)
     ends_at = Column(DateTime(timezone = True), nullable = False)
-    minimum_bid = Column(Numeric(12, 2), nullable = False)
+    minimum_bid = Column(BigInteger, nullable = False)
     cancelled_at = Column(DateTime(timezone = True), nullable = True)

@@ -52,7 +52,6 @@ export function CardSearch({
             <CardTitle>
               <h2 className={cn(displayFont, "text-2xl tracking-tight text-primary")}>Buscar carta</h2>
             </CardTitle>
-            <CardDescription>Consulta ao catálogo para escolher a carta do lote.</CardDescription>
           </div>
         </div>
       </CardHeader>
@@ -181,9 +180,6 @@ export function CardSearch({
         ) : null}
       </CardContent>
 
-      <CardFooter>
-        <p className="text-xs tracking-[0.12em] text-muted-foreground uppercase">Catálogo Pokémon TCG</p>
-      </CardFooter>
     </Card>
   )
 }

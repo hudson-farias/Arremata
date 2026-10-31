@@ -1,7 +1,16 @@
 from datetime import datetime, timezone
-from decimal import Decimal, ROUND_HALF_UP
 
 from pydantic import BaseModel, field_validator, model_validator
+
+
+MAX_BID_CENTS = 999999999999
+
+
+def integer_cents(value) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError('lance inválido')
+
+    return value
 
 
 class CardAttributes(BaseModel):
@@ -29,7 +38,7 @@ class LotCreate(BaseModel):
     attributes: CardAttributes
     starts_at: datetime
     ends_at: datetime
-    minimum_bid: Decimal
+    minimum_bid: int
 
     @field_validator('card_id', 'title', 'image_url')
     @classmethod
@@ -67,17 +76,18 @@ class LotCreate(BaseModel):
             return value.replace(tzinfo = timezone.utc)
         return value
 
-    @field_validator('minimum_bid')
+    @field_validator('minimum_bid', mode = 'before')
     @classmethod
-    def positive_bid(cls, value: Decimal) -> Decimal:
+    def positive_bid(cls, value) -> int:
+        value = integer_cents(value)
+
         if value <= 0:
             raise ValueError('lance deve ser maior que zero')
 
-        quantized = value.quantize(Decimal('0.01'), rounding = ROUND_HALF_UP)
-        if quantized > Decimal('9999999999.99'):
+        if value > MAX_BID_CENTS:
             raise ValueError('lance inválido')
 
-        return quantized
+        return value
 
     @model_validator(mode = 'after')
     def ends_after_start(self):
@@ -99,19 +109,24 @@ class AuctioneerLot(BaseModel):
     attributes: CardAttributes
     starts_at: datetime
     ends_at: datetime
-    minimum_bid: Decimal
+    minimum_bid: int
     cancelled_at: datetime | None
     status: str
     bid_count: int
     result: LotResult | None
+
+    @field_validator('minimum_bid', mode = 'before')
+    @classmethod
+    def bid_cents(cls, value) -> int:
+        return integer_cents(value)
 
 
 class PublicLot(BaseModel):
     id: int
     title: str
     image_url: str
-    minimum_bid: Decimal
-    current_bid: Decimal | None = None
+    minimum_bid: int
+    current_bid: int | None = None
     starts_at: datetime
     ends_at: datetime
     status: str
@@ -121,3 +136,16 @@ class PublicLot(BaseModel):
     rarity: str | None = None
     number: str | None = None
     result: LotResult | None = None
+
+    @field_validator('minimum_bid', mode = 'before')
+    @classmethod
+    def bid_cents(cls, value) -> int:
+        return integer_cents(value)
+
+    @field_validator('current_bid', mode = 'before')
+    @classmethod
+    def current_cents(cls, value) -> int | None:
+        if value is None:
+            return None
+
+        return integer_cents(value)

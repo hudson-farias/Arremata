@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { BadgeCheck, Gavel, Shield } from "lucide-react"
 
 import type { LotSummary } from "@/components/auth/live-lot"
+import { formatCents } from "@/lib/money"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
@@ -138,7 +139,7 @@ function OpenLotCard({ lot, now }: { lot: LotSummary; now: number }) {
                 {bid != null ? (
                   <p className="flex flex-col gap-0.5">
                     <span className="text-[0.65rem] tracking-[0.14em] text-muted-foreground uppercase">{bidLabel}</span>
-                    <span className="text-lg text-primary">{brl.format(bid)}</span>
+                    <span className="text-lg text-primary">{formatCents(bid)}</span>
                   </p>
                 ) : null}
                 {remaining ? (
