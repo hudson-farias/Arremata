@@ -57,9 +57,6 @@ jobs:
           echo "==> git pull"
           git pull --ff-only
 
-          echo "==> docker compose up (api + web)"
-          docker compose -p arremata --project-directory . --env-file .env -f infrastructure/docker-compose.yml up -d --build api web
-
-          echo "==> status"
-          docker compose -p arremata --project-directory . --env-file .env -f infrastructure/docker-compose.yml ps api web db redis
+          echo "==> docker compose up"
+          docker compose -p arremata --env-file .env   -f infrastructure/docker-compose.yml down && docker compose -p arremata --env-file .env -f infrastructure/docker-compose.yml up -d --build
           EOF
