@@ -2,7 +2,7 @@
 
 Casa de leilões online de cartas colecionáveis. O leiloeiro publica os lotes. O licitante acompanha, deposita um saldo simulado e dá lances ao vivo.
 
-O site é Next.js, a API é FatAPI, o banco é Postgres e há cache. Tudo sobe com Docker.
+O site é Next.js, a API é FastAPI, o banco é Postgres e há cache. Tudo sobe com Docker.
 
 ## Como rodar
 
@@ -16,6 +16,22 @@ docker compose -p arremata --env-file .env -f infrastructure/docker-compose.yml 
 
 O site abre em http://localhost:3000.
 
+## Dados de exemplo
+
+Na pasta `apps/backend`, com o schema já migrado:
+
+```bash
+python seed.py
+```
+
+No container:
+
+```bash
+docker compose -p arremata exec api python seed.py
+```
+
+Contas: `leiloeiro@arremata.dev`, `ana@arremata.dev` e `bruno@arremata.dev`. Senha: `leilao123`. Rodar de novo não duplica.
+
 ## Cadeia de lances
 
 Cada lote tem um livro de lances encadeado por HMAC. A auditoria pública (`/lots/[id]/audit`) recalcula a cadeia com a chave da API. O comprovante guarda a ponta.
@@ -26,7 +42,7 @@ O livro de lances do lote, inclusive se alguém alterar a linha direto no Postgr
 
 O comprovante guarda a cabeça da cadeia, a coluna `chain_head`: o `hash` do último elo. Quando já houve liquidação, a auditoria exige que o vencedor e o valor gravados sejam os desse último elo. Sem lances, a cabeça é o HMAC da gênese, o vencedor fica vazio e o valor liquidado é zero.
 
-Na liquidação, o vencedor gravado é o maior `amount_cents` (empate: o `created_at` mais antigo; se continuar, o menor `id`). A `chain_head` copiada é o `hash` da maior `position`. Pela regra de lance, cada oferta nova supera a atual, então esse maior valor é o último elo. Se os dois deixarem de ser a mesma linha, a auditoria recusa.
+Valor repetido no mesmo lote é recusado. Na liquidação, o vencedor gravado é o do último elo, a maior `position`; a `chain_head` é o `hash` desse elo.
 
 ### Como o elo é calculado
 

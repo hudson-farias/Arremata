@@ -76,6 +76,55 @@ class BidChainTest(unittest.TestCase):
         self.assertFalse(intact)
         self.assertEqual(head, second)
 
+    def test_valor_igual_nao_e_vencedor_alternativo(self):
+        prev = sign(genesis_message(7, 1000, 100, STARTS))
+        first = sign(bid_message(7, 1, 3, 1500, CREATED, prev))
+        second_at = datetime(2026, 11, 1, 18, 3, tzinfo = timezone.utc)
+        second = sign(bid_message(7, 2, 4, 1500, second_at, first))
+        bids = [
+            {
+                'id': 1,
+                'position': 1,
+                'bidder_id': 3,
+                'amount_cents': 1500,
+                'created_at': CREATED,
+                'prev_hash': prev,
+                'hash': first,
+            },
+            {
+                'id': 2,
+                'position': 2,
+                'bidder_id': 4,
+                'amount_cents': 1500,
+                'created_at': second_at,
+                'prev_hash': first,
+                'hash': second,
+            },
+        ]
+        fields = {
+            'lot_id': 7,
+            'minimum_bid_cents': 1000,
+            'increment_cents': 100,
+            'starts_at': STARTS,
+            'settlement': {
+                'chain_head': second,
+                'winner_id': 3,
+                'amount_cents': 1500,
+            },
+        }
+        intact, head = assess_chain(bids = bids, **fields)
+        self.assertFalse(intact)
+        self.assertEqual(head, second)
+
+        fields['settlement'] = {
+            'chain_head': second,
+            'winner_id': 4,
+            'amount_cents': 1500,
+        }
+        intact, head = assess_chain(bids = bids, **fields)
+        self.assertTrue(intact)
+        self.assertEqual(head, second)
+
     def test_segredo_ausente_falha(self):
         env.AUDIT_SECRET = ''
 

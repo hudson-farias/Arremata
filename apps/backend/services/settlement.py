@@ -118,37 +118,18 @@ async def _settle_lot(db: AsyncSession, lot_id: int, moment):
     if existing is not None:
         return None
 
-    leader = (
+    last = (
         await db.execute(
-            select(BidsORM.bidder_id, BidsORM.amount_cents)
+            select(BidsORM.bidder_id, BidsORM.amount_cents, BidsORM.hash)
             .where(BidsORM.lot_id == lot.id)
-            .order_by(BidsORM.amount_cents.desc(), BidsORM.created_at.asc(), BidsORM.id.asc())
+            .order_by(BidsORM.position.desc())
             .limit(1)
         )
     ).one_or_none()
 
-    if leader is None:
+    if last is None:
         winner_id = None
         amount = 0
-    else:
-        winner_id = int(leader[0])
-        amount = int(leader[1])
-        moved = await _move_funds(db, winner_id, int(lot.owner_id), amount)
-
-        if not moved:
-            log.warning('saldo incompatível na liquidação do lote %s', lot.id)
-            return None
-
-    tip_hash = (
-        await db.execute(
-            select(BidsORM.hash)
-            .where(BidsORM.lot_id == lot.id)
-            .order_by(BidsORM.position.desc(), BidsORM.id.desc())
-            .limit(1)
-        )
-    ).scalar_one_or_none()
-
-    if tip_hash is None:
         chain_head = sign(genesis_message(
             int(lot.id),
             int(lot.minimum_bid),
@@ -156,7 +137,14 @@ async def _settle_lot(db: AsyncSession, lot_id: int, moment):
             lot.starts_at,
         ))
     else:
-        chain_head = tip_hash
+        winner_id = int(last[0])
+        amount = int(last[1])
+        chain_head = last[2]
+        moved = await _move_funds(db, winner_id, int(lot.owner_id), amount)
+
+        if not moved:
+            log.warning('saldo incompatível na liquidação do lote %s', lot.id)
+            return None
 
     await db.execute(insert(SettlementsORM).values(
         lot_id = int(lot.id),

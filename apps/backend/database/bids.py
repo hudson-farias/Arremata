@@ -7,6 +7,7 @@ class BidsORM(Base):
     __tablename__ = 'bids'
     __table_args__ = (
         UniqueConstraint('lot_id', 'position', name = 'bids_lot_position_unique'),
+        UniqueConstraint('lot_id', 'amount_cents', name = 'bids_lot_amount_unique'),
         CheckConstraint('position > 0', name = 'bids_position_positive'),
     )
 
