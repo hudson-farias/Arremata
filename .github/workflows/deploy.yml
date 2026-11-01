@@ -1,0 +1,65 @@
+name: Deploy
+
+# Dispara quando a API, o site ou o Compose mudam.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/backend/**"
+      - "apps/web/**"
+      - "infrastructure/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-arremata-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy na VPS
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Configurar SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+
+      - name: Adicionar host conhecido
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          PORT="${VPS_PORT:-22}"
+          ssh-keyscan -p "$PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts
+
+      - name: Pull e rebuild
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          VPS_PROJECT_PATH: ${{ secrets.VPS_PROJECT_PATH }}
+        run: |
+          set -euo pipefail
+          PORT="${VPS_PORT:-22}"
+          PROJECT_PATH="${VPS_PROJECT_PATH:-Arremata}"
+
+          ssh -p "$PORT" -o StrictHostKeyChecking=yes "${VPS_USER}@${VPS_HOST}" bash -s -- "$PROJECT_PATH" <<'EOF'
+          set -euo pipefail
+          PROJECT_PATH="$1"
+          cd "$PROJECT_PATH"
+
+          echo "==> git pull"
+          git pull --ff-only
+
+          echo "==> docker compose up (api + web)"
+          docker compose -p arremata --project-directory . --env-file .env -f infrastructure/docker-compose.yml up -d --build api web
+
+          echo "==> status"
+          docker compose -p arremata --project-directory . --env-file .env -f infrastructure/docker-compose.yml ps api web db redis
+          EOF

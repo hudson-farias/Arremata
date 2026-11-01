@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { BadgeCheck, Gavel, Shield } from "lucide-react"
 
 import type { LotSummary } from "@/components/auth/live-lot"
+import { CardPortrait } from "@/components/auctioneer/card-portrait"
 import { formatCents } from "@/lib/money"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -116,11 +117,13 @@ function OpenLotCard({ lot, now }: { lot: LotSummary; now: number }) {
   return (
     <li>
       <Card size="sm">
-        <CardContent className={cn("grid gap-3", lot.imageUrl && "grid-cols-[4.25rem_minmax(0,1fr)]")}>
+        <CardContent className={cn("grid items-center gap-3", lot.imageUrl && "grid-cols-[4.75rem_minmax(0,1fr)]")}>
           {lot.imageUrl ? (
-            <div className="overflow-hidden rounded-lg border border-border bg-background">
-              <img src={lot.imageUrl} alt="" className="aspect-[3/4] w-full object-cover" />
-            </div>
+            <CardPortrait
+              src={lot.imageUrl}
+              alt=""
+              className="aspect-[63/88] h-auto w-full rounded-md border border-border bg-muted object-contain"
+            />
           ) : null}
 
           <div className="flex min-w-0 flex-col gap-2">
