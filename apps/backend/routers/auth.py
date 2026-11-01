@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.exc import IntegrityError
 
 from database.users import UsersORM
-from models.user import AuthResponse, Credentials, UserOut
-from routers import has_authenticated
+from models.user import AuthResponse, Credentials, PasswordChange, UserOut
+from routers import has_authenticated, session_owner
 
 
 router = APIRouter()
@@ -46,4 +46,26 @@ async def login(body: Credentials, response: Response):
 
 @router.get('/me', status_code = 204)
 async def me(_: str = Depends(has_authenticated)):
+    return
+
+
+@router.patch('/password', status_code = 204)
+async def change_password(body: PasswordChange, user_id: int = Depends(session_owner)):
+    users = UsersORM()
+    user = await users.find_one(id = user_id)
+
+    if not user:
+        raise HTTPException(status_code = 401, detail = 'token inválido')
+
+    if not user.verify_password(body.current_password):
+        raise HTTPException(status_code = 400, detail = 'senha atual inválida')
+
+    if body.current_password == body.password:
+        raise HTTPException(status_code = 400, detail = 'senha igual')
+
+    updated = await users.update(user_id, password = users.hash_password(body.password))
+
+    if not updated:
+        raise HTTPException(status_code = 401, detail = 'token inválido')
+
     return

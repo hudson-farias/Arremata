@@ -17,6 +17,13 @@ docker compose -p arremata --env-file .env -f infrastructure/docker-compose.yml 
 
 Ao subir, o container da API aplica as migrations e a seed. O site abre em http://localhost:3000.
 
+Os testes da API não usam o Postgres. Na pasta `apps/backend`:
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
 ## Dados de exemplo
 
 As contas entram com o Compose, junto da API. Não é preciso rodar a seed à parte.
@@ -105,7 +112,8 @@ Só se assina o lance novo — no primeiro, também a gênese, para obter o `pre
 - [x] `/lots/[id]/audit` — auditoria pública, sem login: histórico e se está íntegro.
 - [x] `/auctioneer` — painel do leiloeiro: busca na API externa, criar lote com imagem, título, atributos, início, fim e lance mínimo, cancelar lote sem lances e encerrado sem vencedor.
 - [x] `/wins` — lotes em que a pessoa deu lance e os que venceu; comprovante com link público, sem login.
-- [x] Header autenticado — carteira sempre visível (vitrine, sala, arremates e painel do leiloeiro): saldo total, comprometido, disponível e depósito simulado. Sem rota `/wallet`.
+- [x] Header autenticado — carteira sempre visível (vitrine, sala, arremates e painel do leiloeiro): saldo total, comprometido, disponível e depósito simulado.
+- [x] `/wallet` — tela da carteira: os três saldos, depósito simulado e o movimento do valor comprometido.
 
 ## Back
 
@@ -126,7 +134,7 @@ Checklist para confirmar no fim do desenvolvimento.
 - [x] Busca e filtro de lotes.
 - [x] Cancelamento de lote com estorno automático.
 - [x] Docker Compose.
-- [ ] Testes automatizados.
+- [x] Testes automatizados.
 - [x] Dark mode.
 
 Fora de escopo: nota fiscal, revenda entre usuários, app nativo e recuperação de senha não entram.

@@ -9,16 +9,11 @@ import { ThemeToggle } from "@/components/theme/theme-toggle"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { formatCents, parseCents } from "@/lib/money"
+import { parseWallet, type Wallet } from "@/components/site/wallet"
+import { formatCents } from "@/lib/money"
 import { cn } from "@/lib/utils"
 
 const displayFont = "[font-family:Georgia,Palatino,'Times_New_Roman',serif]"
-
-type Wallet = {
-  total: number
-  committed: number
-  available: number
-}
 
 const emptyWallet: Wallet = { total: 0, committed: 0, available: 0 }
 
@@ -27,16 +22,7 @@ async function loadWallet(): Promise<Wallet> {
     const response = await API.get("/wallet")
     if (!response.ok) return emptyWallet
 
-    const payload: unknown = await response.json()
-    if (typeof payload !== "object" || payload === null) return emptyWallet
-
-    const record = payload as Record<string, unknown>
-    const total = parseCents(record.total)
-    const committed = parseCents(record.committed)
-    const available = parseCents(record.available)
-
-    if (total == null || committed == null || available == null) return emptyWallet
-    return { total, committed, available }
+    return parseWallet(await response.json()) ?? emptyWallet
   } catch {
     return emptyWallet
   }

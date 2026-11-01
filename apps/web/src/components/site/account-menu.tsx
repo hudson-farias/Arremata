@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { ChevronDown, Gavel, KeyRound, LayoutGrid, LogOut, Trophy, Wallet } from "lucide-react"
 
 import { logout } from "@/components/site/logout"
@@ -15,6 +16,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 export function AccountMenu() {
+  const pathname = usePathname()
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -37,13 +40,17 @@ export function AccountMenu() {
               Vitrine
             </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem disabled>
-            <KeyRound />
-            Mudar senha
+          <DropdownMenuItem asChild>
+            <Link href="/password">
+              <KeyRound />
+              Mudar senha
+            </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem disabled>
-            <Wallet />
-            Carteira
+          <DropdownMenuItem asChild>
+            <Link href="/wallet" aria-current={pathname === "/wallet" ? "page" : undefined}>
+              <Wallet />
+              Carteira
+            </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
             <Link href="/wins">

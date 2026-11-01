@@ -1,0 +1,33 @@
+name: Testes do backend
+
+on:
+  push:
+    paths:
+      - "apps/backend/**"
+      - ".github/workflows/backend-tests.yml"
+  pull_request:
+    paths:
+      - "apps/backend/**"
+      - ".github/workflows/backend-tests.yml"
+
+jobs:
+  pytest:
+    name: pytest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Dependências
+        run: pip install -r requirements-dev.txt
+
+      - name: Testes
+        run: pytest
