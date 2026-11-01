@@ -245,6 +245,8 @@ export function MyLots({
     if (!target || cancelling) return
     setCancelling(true)
 
+    const refundLeader = target.status === "live" && target.bidCount > 0
+
     try {
       const response = await cancelLot(target.id)
       if (response.status === 401) {
@@ -257,7 +259,7 @@ export function MyLots({
         return
       }
 
-      toast.success("Lote cancelado.")
+      toast.success(refundLeader ? "Lote cancelado. O lance líder foi estornado." : "Lote cancelado.")
       setTarget(null)
       setReload((current) => current + 1)
     } catch {
@@ -490,7 +492,9 @@ export function MyLots({
 
               <FieldGroup>
                 <Field data-invalid={errors.title ? true : undefined}>
-                  <FieldLabel htmlFor="edit-lot-title">Título do lote</FieldLabel>
+                  <FieldLabel htmlFor="edit-lot-title" className="gap-0">
+                    Título do lote <span className="text-destructive">*</span>
+                  </FieldLabel>
                   <Input
                     id="edit-lot-title"
                     value={title}
@@ -511,7 +515,9 @@ export function MyLots({
                 </FieldLegend>
                 <FieldGroup className="grid gap-4 sm:grid-cols-2">
                   <Field data-invalid={errors.starts ? true : undefined}>
-                    <FieldLabel htmlFor="edit-lot-start">Início</FieldLabel>
+                    <FieldLabel htmlFor="edit-lot-start" className="gap-0">
+                      Início <span className="text-destructive">*</span>
+                    </FieldLabel>
                     <Input
                       id="edit-lot-start"
                       type="datetime-local"
@@ -522,7 +528,9 @@ export function MyLots({
                     {errors.starts ? <FieldError>{errors.starts}</FieldError> : null}
                   </Field>
                   <Field data-invalid={errors.ends ? true : undefined}>
-                    <FieldLabel htmlFor="edit-lot-end">Fim</FieldLabel>
+                    <FieldLabel htmlFor="edit-lot-end" className="gap-0">
+                      Fim <span className="text-destructive">*</span>
+                    </FieldLabel>
                     <Input
                       id="edit-lot-end"
                       type="datetime-local"
@@ -537,7 +545,9 @@ export function MyLots({
 
               <FieldGroup className="grid gap-4 sm:grid-cols-2">
                 <Field data-invalid={errors.minimum ? true : undefined}>
-                  <FieldLabel htmlFor="edit-lot-minimum">Lance mínimo</FieldLabel>
+                  <FieldLabel htmlFor="edit-lot-minimum" className="gap-0">
+                    Lance mínimo <span className="text-destructive">*</span>
+                  </FieldLabel>
                   <InputGroup className="h-11">
                     <InputGroupAddon>
                       <InputGroupText>R$</InputGroupText>
@@ -557,7 +567,9 @@ export function MyLots({
                   {errors.minimum ? <FieldError>{errors.minimum}</FieldError> : null}
                 </Field>
                 <Field data-invalid={errors.increment ? true : undefined}>
-                  <FieldLabel htmlFor="edit-lot-increment">Incremento</FieldLabel>
+                  <FieldLabel htmlFor="edit-lot-increment" className="gap-0">
+                    Incremento <span className="text-destructive">*</span>
+                  </FieldLabel>
                   <InputGroup className="h-11">
                     <InputGroupAddon>
                       <InputGroupText>R$</InputGroupText>

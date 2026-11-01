@@ -1,7 +1,8 @@
 import Link from "next/link"
-import { ArrowLeft, Lock, ScrollText, Shield, ShieldCheck } from "lucide-react"
+import { ArrowLeft, Lock, ScrollText, Shield, ShieldAlert, ShieldCheck } from "lucide-react"
 
 import {
+  abbreviateHash,
   bidCountLabel,
   bidKey,
   collectorLine,
@@ -19,32 +20,58 @@ const displayFont = "[font-family:Georgia,Palatino,'Times_New_Roman',serif]"
 const labelClass = "font-mono text-[11px] tracking-[0.12em] text-muted-foreground uppercase"
 const cardClass = "rounded-lg border border-border bg-card"
 
-const columns = ["Horário", "Licitante", "Valor"] as const
+const columns = ["Horário", "Licitante", "Valor", "Hash"] as const
+
+type ChainTone = "intact" | "broken" | "unpublished"
 
 type ChainPanel = {
   title: string
   body: string
   emptyBook: boolean
+  tone: ChainTone
+  head: string | null
 }
 
-function chainPanel(lot: ShowcaseLot): ChainPanel | null {
+function chainPanel(lot: ShowcaseLot): ChainPanel {
+  const head = lot.chainHead
+
   if (lot.bidCount === 0) {
     return {
       title: "Cadeia íntegra",
       body: "O livro de lances está vazio. Sem registros, não há o que adulterar.",
       emptyBook: true,
+      tone: "intact",
+      head,
     }
   }
 
-  if (lot.bids.length === 0) {
+  if (lot.chainIntact === true) {
     return {
-      title: "Cadeia não publicada",
-      body: "O livro lance a lance ainda não é publicado.",
+      title: "Cadeia íntegra",
+      body: "Cada lance confere com o hash anterior.",
       emptyBook: false,
+      tone: "intact",
+      head,
     }
   }
 
-  return null
+  if (lot.chainIntact === false) {
+    return {
+      title: "Cadeia adulterada",
+      body: "Algum lance não confere com o hash gravado.",
+      emptyBook: false,
+      tone: "broken",
+      head,
+    }
+  }
+
+  return {
+    title: "Cadeia não publicada",
+    body: "O livro lance a lance ainda não é publicado.",
+    emptyBook: false,
+    tone: "unpublished",
+    head,
+  }
 }
 
 function bidTimestamp(createdAt: string): number {
@@ -69,7 +96,7 @@ function historyEmpty(bidCount: number): string {
 export function AuditReport({ lot }: { lot: ShowcaseLot }) {
   const specs = collectorLine(lot)
   const chain = chainPanel(lot)
-  const ChainIcon = chain?.emptyBook ? ShieldCheck : Shield
+  const ChainIcon = chain.tone === "broken" ? ShieldAlert : chain.tone === "intact" ? ShieldCheck : Shield
   const currentBid = lot.currentBid == null ? "—" : formatLotMoney(lot.currentBid)
   const firstBid = openingBid(lot)
   const firstBidLabel = firstBid == null ? "—" : formatLotMoney(firstBid)
@@ -96,24 +123,27 @@ export function AuditReport({ lot }: { lot: ShowcaseLot }) {
           {specs ? <p className="text-base text-muted-foreground">{specs}</p> : null}
         </div>
 
-        {chain ? (
-          <section className={cn(cardClass, "flex items-start gap-4 p-6")}>
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-primary">
-              <ChainIcon className="size-5" aria-hidden />
+        <section className={cn(cardClass, "flex items-start gap-4 p-6")}>
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-primary">
+            <ChainIcon className="size-5" aria-hidden />
+          </div>
+          <div className="flex min-w-0 flex-col gap-1">
+            <div className="flex flex-wrap items-center gap-3">
+              <h2 className="text-lg font-semibold text-foreground">{chain.title}</h2>
+              {chain.emptyBook ? (
+                <span className="rounded-lg bg-primary px-2 py-0.5 font-mono text-[11px] tracking-[0.12em] text-primary-foreground uppercase">
+                  Livro vazio
+                </span>
+              ) : null}
             </div>
-            <div className="flex min-w-0 flex-col gap-1">
-              <div className="flex flex-wrap items-center gap-3">
-                <h2 className="text-lg font-semibold text-foreground">{chain.title}</h2>
-                {chain.emptyBook ? (
-                  <span className="rounded-lg bg-primary px-2 py-0.5 font-mono text-[11px] tracking-[0.12em] text-primary-foreground uppercase">
-                    Livro vazio
-                  </span>
-                ) : null}
-              </div>
-              <p className="text-sm text-muted-foreground">{chain.body}</p>
-            </div>
-          </section>
-        ) : null}
+            <p className="text-sm text-muted-foreground">{chain.body}</p>
+            {chain.head ? (
+              <p className="font-mono text-[13px] text-muted-foreground" title={chain.head}>
+                Cabeça da cadeia {abbreviateHash(chain.head)}
+              </p>
+            ) : null}
+          </div>
+        </section>
 
         <section className="grid grid-cols-1 gap-6 md:grid-cols-3">
           <article className={cn(cardClass, "flex flex-col gap-2 p-6")}>
@@ -178,6 +208,9 @@ export function AuditReport({ lot }: { lot: ShowcaseLot }) {
                     <TableCell className="px-4">{formatLotDate(bid.createdAt) ?? "—"}</TableCell>
                     <TableCell className="px-4">#{bid.bidderId}</TableCell>
                     <TableCell className="px-4 text-primary">{formatLotMoney(bid.amount)}</TableCell>
+                    <TableCell className="px-4" title={bid.hash ?? undefined}>
+                      {bid.hash ? abbreviateHash(bid.hash) : "—"}
+                    </TableCell>
                   </TableRow>
                 ))
               )}

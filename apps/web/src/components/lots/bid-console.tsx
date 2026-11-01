@@ -18,7 +18,9 @@ import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group"
 import { Spinner } from "@/components/ui/spinner"
 
-function StatusBadge({ status }: { status: ShowcaseStatus }) {
+function StatusBadge({ status, cancelled }: { status: ShowcaseStatus; cancelled: boolean }) {
+  if (cancelled) return <Badge variant="destructive">Cancelado</Badge>
+
   const variant = status === "live" ? "default" : status === "closed" ? "secondary" : "outline"
 
   return (
@@ -34,11 +36,25 @@ function ClockReadout({
   lot,
   remaining,
   extended,
+  cancelled,
 }: {
   lot: ShowcaseLot
   remaining: string | null
   extended: boolean
+  cancelled: boolean
 }) {
+  if (cancelled) {
+    return (
+      <p className="flex flex-col items-end gap-0.5 text-right">
+        <span className="text-[0.65rem] tracking-[0.14em] text-muted-foreground uppercase">Pregão</span>
+        <span className="inline-flex items-center gap-1.5 font-mono text-sm text-foreground">
+          <Clock className="size-3.5 text-primary" aria-hidden />
+          Cancelado
+        </span>
+      </p>
+    )
+  }
+
   if (lot.status === "closed" || remaining === "Encerrado") {
     return (
       <p className="flex flex-col items-end gap-0.5 text-right">
@@ -80,6 +96,8 @@ export function BidConsole({
   remaining,
   extended,
   open,
+  cancelled,
+  refunded,
   position,
   viewerId,
   amount,
@@ -92,6 +110,8 @@ export function BidConsole({
   remaining: string | null
   extended: boolean
   open: boolean
+  cancelled: boolean
+  refunded: boolean
   position: "winning" | "outbid" | null
   viewerId: number | null
   amount: string
@@ -109,8 +129,8 @@ export function BidConsole({
     <Card>
       <CardContent className="flex flex-col gap-6">
         <div className="flex items-start justify-between gap-4 border-b border-border pb-4">
-          <StatusBadge status={lot.status} />
-          <ClockReadout lot={lot} remaining={remaining} extended={extended} />
+          <StatusBadge status={lot.status} cancelled={cancelled} />
+          <ClockReadout lot={lot} remaining={remaining} extended={extended} cancelled={cancelled} />
         </div>
 
         <div className="flex flex-col gap-2 rounded-lg border border-border bg-background p-4">
@@ -119,8 +139,11 @@ export function BidConsole({
           </span>
           <p className="font-mono text-3xl text-primary">{formatLotMoney(shown)}</p>
           <p className="text-sm text-muted-foreground">{bidCountLabel(lot.bidCount)}</p>
-          {position === "winning" ? <p className="text-sm font-medium text-primary">Ganhando</p> : null}
-          {position === "outbid" ? <p className="text-sm font-medium text-muted-foreground">Superado</p> : null}
+          {cancelled && refunded ? (
+            <p className="text-sm text-muted-foreground">O valor comprometido voltou ao disponível.</p>
+          ) : null}
+          {!cancelled && position === "winning" ? <p className="text-sm font-medium text-primary">Ganhando</p> : null}
+          {!cancelled && position === "outbid" ? <p className="text-sm font-medium text-muted-foreground">Superado</p> : null}
         </div>
 
         <form className="flex flex-col gap-3" onSubmit={onSubmit}>
@@ -155,7 +178,7 @@ export function BidConsole({
 
           {open ? null : (
             <p id="lot-bid-hint" className="text-center text-sm text-muted-foreground">
-              O pregão não está aberto.
+              {cancelled ? "O lote foi cancelado." : "O pregão não está aberto."}
             </p>
           )}
         </form>

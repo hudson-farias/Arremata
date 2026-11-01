@@ -9,6 +9,7 @@ from database.bids import BidsORM
 from database.lots import LotsORM
 from database.settlements import SettlementsORM
 from database.users import MAX_BALANCE_CENTS, UsersORM
+from services.chain import genesis_message, sign
 from services.lots import aware, now_utc
 
 
@@ -51,6 +52,7 @@ async def settlement_for(lot_id: int, db: AsyncSession | None = None) -> dict | 
         'amount': int(row.amount_cents),
         'seller_id': int(row.seller_id),
         'settled_at': aware(row.created_at),
+        'chain_head': row.chain_head,
     }
 
 
@@ -137,11 +139,31 @@ async def _settle_lot(db: AsyncSession, lot_id: int, moment):
             log.warning('saldo incompatível na liquidação do lote %s', lot.id)
             return None
 
+    tip_hash = (
+        await db.execute(
+            select(BidsORM.hash)
+            .where(BidsORM.lot_id == lot.id)
+            .order_by(BidsORM.position.desc(), BidsORM.id.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+    if tip_hash is None:
+        chain_head = sign(genesis_message(
+            int(lot.id),
+            int(lot.minimum_bid),
+            int(lot.increment_cents),
+            lot.starts_at,
+        ))
+    else:
+        chain_head = tip_hash
+
     await db.execute(insert(SettlementsORM).values(
         lot_id = int(lot.id),
         winner_id = winner_id,
         seller_id = int(lot.owner_id),
         amount_cents = amount,
+        chain_head = chain_head,
         created_at = now_utc(),
     ))
     return lot, winner_id

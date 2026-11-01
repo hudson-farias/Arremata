@@ -190,11 +190,22 @@ class PublicBid(BaseModel):
     amount: int
     created_at: datetime
     bidder: int
+    position: int
+    hash: str
+    prev_hash: str
 
     @field_validator('amount', mode = 'before')
     @classmethod
     def amount_cents(cls, value) -> int:
         return integer_cents(value)
+
+    @field_validator('position', mode = 'before')
+    @classmethod
+    def bid_position(cls, value) -> int:
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise ValueError('posição inválida')
+
+        return value
 
     @field_validator('bidder', mode = 'before')
     @classmethod
@@ -230,6 +241,8 @@ class PublicLot(BaseModel):
     rarity: str | None = None
     number: str | None = None
     result: LotResult | None = None
+    chain_intact: bool
+    chain_head: str
 
     @field_validator('minimum_bid', 'increment', mode = 'before')
     @classmethod
@@ -273,6 +286,7 @@ class LotReceipt(BaseModel):
     amount: int
     winner: int | None = None
     settled_at: datetime
+    chain_head: str
 
     @field_validator('amount', mode = 'before')
     @classmethod

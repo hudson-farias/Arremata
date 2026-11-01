@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from database.lots import LotsORM
 from models.lot import AuctioneerLot, LotCreate, LotUpdate
 from routers import session_owner
-from services.lots import auctioneer_lot, now_utc, status_of, summaries_for
+from services.lots import LotError, auctioneer_lot, cancel_owned_lot, now_utc, status_of, summaries_for
 from services.settlement import settle_due
 
 
@@ -38,26 +38,10 @@ async def list_own_lots(owner_id: int = Depends(session_owner)):
 
 @router.delete('/lots/{id}', response_model = AuctioneerLot)
 async def cancel_lot(id: int, owner_id: int = Depends(session_owner)):
-    lots = LotsORM()
-    lot = await lots.find_one(id = id)
-
-    if not lot or lot.owner_id != owner_id:
-        raise HTTPException(status_code = 404, detail = 'lote não encontrado')
-
-    if lot.cancelled_at is not None:
-        raise HTTPException(status_code = 409, detail = 'lote cancelado')
-
-    moment = now_utc()
-
-    if status_of(lot, moment) == 'closed':
-        raise HTTPException(status_code = 409, detail = 'lote encerrado')
-
-    updated = await lots.update(id, cancelled_at = moment)
-
-    if not updated:
-        raise HTTPException(status_code = 404, detail = 'lote não encontrado')
-
-    return await auctioneer_lot(updated, moment)
+    try:
+        return await cancel_owned_lot(id, owner_id)
+    except LotError as error:
+        raise HTTPException(status_code = error.status_code, detail = error.detail)
 
 
 @router.patch('/lots/{id}', response_model = AuctioneerLot)

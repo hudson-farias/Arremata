@@ -49,7 +49,7 @@ async def read_public_lot(lot_id: int = Path(gt = 0), full: bool = Query(default
     await settle_due()
     lot = await LotsORM().find_one(id = lot_id)
 
-    if not lot or status_of(lot) == 'cancelled':
+    if not lot:
         raise HTTPException(status_code = 404, detail = 'lote não encontrado')
 
     return await public_lot(lot, include_bids = True, bid_limit = None if full else RECENT_LIMIT)
@@ -77,6 +77,7 @@ async def read_lot_receipt(lot_id: int = Path(gt = 0)):
         'amount': int(settlement['amount']),
         'winner': None if winner is None else int(winner),
         'settled_at': settlement['settled_at'],
+        'chain_head': settlement['chain_head'],
     }
 
 

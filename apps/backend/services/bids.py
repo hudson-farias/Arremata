@@ -7,6 +7,7 @@ from database import Session
 from database.bids import BidsORM
 from database.lots import LotsORM
 from database.users import UsersORM
+from services.chain import bid_message, genesis_message, sign
 from services.live import publish_lot
 from services.lots import aware, bid_summary, extend_ends_at, leading_bidder, now_utc, public_lot, status_of
 from services.settlement import settle_due
@@ -114,11 +115,45 @@ async def place_bid(lot_id: int, bidder_id: int, amount: int) -> dict:
 
         extend_ends_at(lot, moment)
 
+        previous = (
+            await db.execute(
+                select(BidsORM.position, BidsORM.hash)
+                .where(BidsORM.lot_id == lot.id)
+                .order_by(BidsORM.position.desc(), BidsORM.id.desc())
+                .limit(1)
+                .with_for_update()
+            )
+        ).one_or_none()
+
+        if previous is None:
+            position = 1
+            prev_hash = sign(genesis_message(
+                int(lot.id),
+                int(lot.minimum_bid),
+                int(lot.increment_cents),
+                lot.starts_at,
+            ))
+        else:
+            position = int(previous[0]) + 1
+            prev_hash = previous[1]
+
+        digest = sign(bid_message(
+            int(lot.id),
+            position,
+            bidder_id,
+            amount,
+            moment,
+            prev_hash,
+        ))
+
         await db.execute(insert(BidsORM).values(
             lot_id = lot.id,
             bidder_id = bidder_id,
             amount_cents = amount,
             created_at = moment,
+            position = position,
+            prev_hash = prev_hash,
+            hash = digest,
         ))
 
         payload = await public_lot(lot, moment, include_bids = True, db = db)

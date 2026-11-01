@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils"
 
 const displayFont = "[font-family:Georgia,Palatino,'Times_New_Roman',serif]"
 
-export function LotShowcase({ lot }: { lot: ShowcaseLot }) {
+export function LotShowcase({ lot, cancelled = false }: { lot: ShowcaseLot; cancelled?: boolean }) {
   const specs = collectorLine(lot)
 
   return (
@@ -23,13 +23,15 @@ export function LotShowcase({ lot }: { lot: ShowcaseLot }) {
         </Link>
         <div className="flex flex-wrap items-center gap-3">
           <p className="text-[0.7rem] tracking-[0.16em] text-primary uppercase">Lote #{lot.id}</p>
-          <Button variant="outline" size="sm" asChild>
-            <Link href={`/lots/${lot.id}/audit`}>
-              <Shield data-icon="inline-start" aria-hidden />
-              Auditoria
-            </Link>
-          </Button>
-          {lot.status === "closed" ? (
+          {cancelled ? null : (
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/lots/${lot.id}/audit`}>
+                <Shield data-icon="inline-start" aria-hidden />
+                Auditoria
+              </Link>
+            </Button>
+          )}
+          {lot.status === "closed" && !cancelled ? (
             <Button variant="outline" size="sm" asChild>
               <Link href={`/lots/${lot.id}/receipt`}>
                 <Receipt data-icon="inline-start" aria-hidden />
@@ -56,6 +58,7 @@ export function LotShowcase({ lot }: { lot: ShowcaseLot }) {
           {lot.title}
         </h1>
         {specs ? <p className="text-sm text-muted-foreground">{specs}</p> : null}
+        {cancelled ? <p className="text-sm text-muted-foreground">Este lote foi cancelado.</p> : null}
       </div>
     </section>
   )

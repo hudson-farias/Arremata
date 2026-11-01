@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, Column, DateTime, ForeignKey, Integer
+from sqlalchemy import BigInteger, Column, DateTime, ForeignKey, Integer, String
 
 from database import Base
 
@@ -12,3 +12,4 @@ class SettlementsORM(Base):
     seller_id = Column(Integer, ForeignKey('users.id'), nullable = False)
     amount_cents = Column(BigInteger, nullable = False)
     created_at = Column(DateTime(timezone = True), nullable = False)
+    chain_head = Column(String(64), nullable = False)

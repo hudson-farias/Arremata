@@ -2,7 +2,7 @@ import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 
 import { CardPortrait } from "@/components/auctioneer/card-portrait"
-import { formatLotDate, formatLotMoney } from "@/components/lots/model"
+import { abbreviateHash, formatLotDate, formatLotMoney } from "@/components/lots/model"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
@@ -17,6 +17,7 @@ export type LotReceipt = {
   amount: number
   winner: number | null
   settledAt: string
+  chainHead: string | null
 }
 
 export function ReceiptReport({ receipt }: { receipt: LotReceipt }) {
@@ -63,12 +64,20 @@ export function ReceiptReport({ receipt }: { receipt: LotReceipt }) {
               </div>
               <div className="flex flex-col gap-2">
                 <dt className={labelClass}>Licitante</dt>
-                <dd className="text-base text-foreground">{won ? `Licitante ${receipt.winner}` : "Nenhum"}</dd>
+                <dd className="text-base text-foreground">{won ? `#${receipt.winner}` : "Nenhum"}</dd>
               </div>
               <div className="flex flex-col gap-2">
                 <dt className={labelClass}>Data da liquidação</dt>
                 <dd className="font-mono text-base text-foreground">{settledAt ?? "—"}</dd>
               </div>
+              {receipt.chainHead ? (
+                <div className="flex flex-col gap-2 sm:col-span-3">
+                  <dt className={labelClass}>Cabeça da cadeia</dt>
+                  <dd className="font-mono text-base text-foreground" title={receipt.chainHead}>
+                    {abbreviateHash(receipt.chainHead)}
+                  </dd>
+                </div>
+              ) : null}
             </dl>
           </CardContent>
           {won ? null : (

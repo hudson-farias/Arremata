@@ -93,11 +93,13 @@ export default function LotPageClient({
   condition,
   viewerId: initialViewerId,
   placeBid,
+  cancelled: initiallyCancelled = false,
 }: {
   lot: ShowcaseLot
   condition: string | null
   viewerId: number | null
   placeBid: (id: string, amount: number) => Promise<PlaceBidResult>
+  cancelled?: boolean
 }) {
   const router = useRouter()
   const signature = bidSignature(initialLot)
@@ -112,16 +114,21 @@ export default function LotPageClient({
   const [now, setNow] = useState<number | null>(null)
   const [visitEnd, setVisitEnd] = useState(initialLot.endsAt)
   const [extended, setExtended] = useState(false)
+  const [cancelled, setCancelled] = useState(initiallyCancelled)
+  const [refunded, setRefunded] = useState(false)
   const lotRef = useRef(lot)
   const viewerRef = useRef(viewerId)
   const leadingRef = useRef(leading)
   const positionRef = useRef(position)
+  const cancelledRef = useRef(cancelled)
   const applyRef = useRef<(event: { lot: ShowcaseLot; leading: boolean }) => void>(() => {})
+  const applyCancelRef = useRef<(wasLeading: boolean) => void>(() => {})
 
   lotRef.current = lot
   viewerRef.current = viewerId
   leadingRef.current = leading
   positionRef.current = position
+  cancelledRef.current = cancelled
 
   if (initialViewerId != null && viewerId !== initialViewerId) {
     viewerRef.current = initialViewerId
@@ -134,15 +141,21 @@ export default function LotPageClient({
     viewerRef.current = initialViewerId
     leadingRef.current = nextLeading
     positionRef.current = initialSeat(initialLot, initialViewerId)
+    cancelledRef.current = initiallyCancelled
     setSeen(signature)
     setLot(initialLot)
     setViewerId(initialViewerId)
     setLeading(nextLeading)
     setPosition(positionRef.current)
+    setCancelled(initiallyCancelled)
+    setRefunded(false)
     setAmount(reaisInput(bidFloorCents(initialLot)))
     setError(null)
     setVisitEnd(initialLot.endsAt)
     setExtended(false)
+  } else if (initiallyCancelled && !cancelledRef.current) {
+    cancelledRef.current = true
+    setCancelled(true)
   } else if (lot.endsAt !== visitEnd || seen !== signature) {
     if (lot.endsAt !== visitEnd) {
       if (endsMoved(visitEnd, lot.endsAt)) setExtended(true)
@@ -160,6 +173,8 @@ export default function LotPageClient({
   }
 
   applyRef.current = (event) => {
+    if (cancelledRef.current) return
+
     const current = lotRef.current
     const merged = mergeLiveLot(current, event.lot)
     const previousFloor = bidFloorCents(current)
@@ -184,27 +199,57 @@ export default function LotPageClient({
     }
   }
 
+  applyCancelRef.current = (wasLeading) => {
+    if (cancelledRef.current) return
+
+    cancelledRef.current = true
+    setCancelled(true)
+
+    if (wasLeading) {
+      setRefunded(true)
+      toast.success("O valor comprometido voltou ao disponível.")
+    }
+
+    router.refresh()
+  }
+
   useEffect(() => {
+    if (cancelled) return
+
     let stopped = false
     let socket: WebSocket | null = null
     let retry: number | null = null
 
     const connect = () => {
-      if (stopped) return
+      if (stopped || cancelledRef.current) return
 
       const next = new WebSocket(lotLiveURL(initialLot.id))
       socket = next
 
       next.onmessage = (message) => {
-        if (stopped || socket !== next || typeof message.data !== "string") return
+        if (stopped || socket !== next || cancelledRef.current || typeof message.data !== "string") return
 
         const event = parseLiveLotEvent(message.data)
-        if (!event || event.lot.id !== initialLot.id) return
+        if (!event) return
+
+        if (event.type === "cancelled") {
+          if (event.lotId !== initialLot.id) return
+          applyCancelRef.current(event.leading)
+          return
+        }
+
+        if (event.lot.id !== initialLot.id) return
         applyRef.current(event)
       }
 
       next.onclose = (event) => {
-        if (stopped || socket !== next || event.code === 1008) return
+        if (stopped || socket !== next || cancelledRef.current) return
+
+        if (event.code === 1008) {
+          applyCancelRef.current(leadingRef.current)
+          return
+        }
+
         retry = window.setTimeout(connect, reconnectDelayMs)
       }
     }
@@ -216,9 +261,9 @@ export default function LotPageClient({
       if (retry != null) window.clearTimeout(retry)
       socket?.close()
     }
-  }, [initialLot.id])
+  }, [cancelled, initialLot.id])
 
-  const ticking = lot.status === "live" && Boolean(lot.endsAt)
+  const ticking = !cancelled && lot.status === "live" && Boolean(lot.endsAt)
 
   useEffect(() => {
     setNow(Date.now())
@@ -229,11 +274,11 @@ export default function LotPageClient({
   }, [ticking])
 
   const remaining = ticking && now != null && lot.endsAt ? formatRemaining(lot.endsAt, now) : null
-  const open = lot.status === "live" && remaining !== "Encerrado"
+  const open = !cancelled && lot.status === "live" && remaining !== "Encerrado"
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!open || pending) return
+    if (!open || pending || cancelled) return
 
     const reais = parseReais(amount)
     const cents = reais == null ? null : reaisToCents(reais)
@@ -265,6 +310,7 @@ export default function LotPageClient({
 
     try {
       const result = await placeBid(lot.id, cents)
+      if (cancelledRef.current) return
 
       if (result.status === 401) {
         window.location.href = `/login?next=/lots/${lot.id}`
@@ -303,15 +349,17 @@ export default function LotPageClient({
 
       <main className="relative mx-auto grid w-full max-w-7xl grid-cols-1 items-start gap-8 px-6 py-8 lg:grid-cols-12">
         <div className="flex flex-col gap-6 lg:col-span-7">
-          <LotShowcase lot={lot} />
+          <LotShowcase lot={lot} cancelled={cancelled} />
           <ConditionReport text={condition} />
         </div>
         <div className="lg:col-span-5">
           <BidConsole
             lot={lot}
             remaining={remaining}
-            extended={extended && lot.status === "live"}
+            extended={extended && lot.status === "live" && !cancelled}
             open={open}
+            cancelled={cancelled}
+            refunded={refunded}
             position={position}
             viewerId={viewerId}
             amount={amount}

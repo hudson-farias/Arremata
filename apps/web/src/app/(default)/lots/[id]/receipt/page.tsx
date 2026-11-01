@@ -5,6 +5,7 @@ import { notFound } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 
 import { API } from "@/api/server"
+import { parseChainHash } from "@/components/lots/model"
 import { ReceiptReport, type LotReceipt } from "@/components/lots/receipt-report"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { parseCents } from "@/lib/money"
@@ -69,6 +70,7 @@ function parseReceipt(payload: unknown): LotReceipt | null {
     amount: winner == null ? 0 : amount,
     winner,
     settledAt,
+    chainHead: parseChainHash(payload.chain_head ?? payload.chainHead),
   }
 }
 

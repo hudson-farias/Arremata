@@ -8,7 +8,9 @@ export type LotBid = {
   amount: number
   createdAt: string
   bidderId: number
+  position: number | null
   hash: string | null
+  prevHash: string | null
 }
 
 export type ShowcaseLot = {
@@ -23,6 +25,8 @@ export type ShowcaseLot = {
   status: ShowcaseStatus
   bidCount: number
   bids: LotBid[]
+  chainIntact: boolean | null
+  chainHead: string | null
   setName: string
   rarity: string
   number: string
@@ -99,10 +103,25 @@ function idOf(value: unknown): number | null {
   return null
 }
 
-function bidHash(value: unknown): string | null {
+const chainHashPattern = /^[0-9a-f]{64}$/i
+
+export function parseChainHash(value: unknown): string | null {
   if (typeof value !== "string") return null
   const raw = value.trim()
-  return raw || null
+  return chainHashPattern.test(raw) ? raw : null
+}
+
+function bidPosition(value: unknown): number | null {
+  if (typeof value === "number" && Number.isSafeInteger(value) && value >= 1) return value
+  if (typeof value === "string" && /^[1-9]\d*$/.test(value.trim())) {
+    const parsed = Number(value.trim())
+    if (Number.isSafeInteger(parsed)) return parsed
+  }
+  return null
+}
+
+function chainIntactOf(value: unknown): boolean | null {
+  return typeof value === "boolean" ? value : null
 }
 
 function parseBid(value: unknown): LotBid | null {
@@ -113,7 +132,14 @@ function parseBid(value: unknown): LotBid | null {
   const bidderId = idOf(value.bidder ?? value.bidder_id ?? value.bidderId)
   if (amount == null || !createdAt || bidderId == null) return null
 
-  return { amount, createdAt, bidderId, hash: bidHash(value.hash) }
+  return {
+    amount,
+    createdAt,
+    bidderId,
+    position: bidPosition(value.position),
+    hash: parseChainHash(value.hash),
+    prevHash: parseChainHash(value.prev_hash ?? value.prevHash),
+  }
 }
 
 function parseBids(value: unknown): LotBid[] {
@@ -152,6 +178,8 @@ export function parseShowcaseLot(value: unknown): ShowcaseLot | null {
     status,
     bidCount: count(value.bid_count ?? value.bidCount),
     bids: parseBids(value.bids),
+    chainIntact: chainIntactOf(value.chain_intact ?? value.chainIntact),
+    chainHead: parseChainHash(value.chain_head ?? value.chainHead),
     setName: text(attributes.set_name) || text(value.set_name),
     rarity: text(attributes.rarity) || text(value.rarity),
     number: text(attributes.number) || text(value.number),
@@ -210,6 +238,20 @@ export function bidKey(bid: LotBid): string {
   return `${bid.amount}:${stamp}:${bid.bidderId}`
 }
 
+export function abbreviateHash(hash: string): string {
+  if (hash.length <= 16) return hash
+  return `${hash.slice(0, 8)}…${hash.slice(-8)}`
+}
+
+function mergeBid(previous: LotBid, next: LotBid): LotBid {
+  return {
+    ...next,
+    position: next.position ?? previous.position,
+    hash: next.hash ?? previous.hash,
+    prevHash: next.prevHash ?? previous.prevHash,
+  }
+}
+
 function laterIso(left: string | null, right: string | null): string | null {
   const leftTime = left ? Date.parse(left) : Number.NaN
   const rightTime = right ? Date.parse(right) : Number.NaN
@@ -223,7 +265,9 @@ export function mergeLiveLot(current: ShowcaseLot, incoming: ShowcaseLot): Showc
 
   const byKey = new Map<string, LotBid>()
   for (const bid of [...current.bids, ...incoming.bids]) {
-    byKey.set(bidKey(bid), bid)
+    const key = bidKey(bid)
+    const previous = byKey.get(key)
+    byKey.set(key, previous ? mergeBid(previous, bid) : bid)
   }
 
   const bids = [...byKey.values()].sort((left, right) => {
@@ -246,6 +290,8 @@ export function mergeLiveLot(current: ShowcaseLot, incoming: ShowcaseLot): Showc
     status: incomingNewer ? incoming.status : current.status,
     bidCount: Math.max(current.bidCount, incoming.bidCount),
     bids: bids.slice(0, 20),
+    chainIntact: incoming.chainIntact ?? current.chainIntact,
+    chainHead: incoming.chainHead ?? current.chainHead,
   }
 }
 

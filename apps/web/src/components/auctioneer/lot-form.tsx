@@ -212,7 +212,9 @@ export function LotForm({ card, onCreated, createLot }: LotFormProps) {
 
                 <FieldGroup>
                   <Field data-invalid={errors.title ? true : undefined}>
-                    <FieldLabel htmlFor="lot-title">Título do lote</FieldLabel>
+                    <FieldLabel htmlFor="lot-title" className="gap-0">
+                      Título do lote <span className="text-destructive">*</span>
+                    </FieldLabel>
                     <Input
                       id="lot-title"
                       value={title}
@@ -228,15 +230,21 @@ export function LotForm({ card, onCreated, createLot }: LotFormProps) {
                   <p className="text-xs tracking-[0.14em] text-muted-foreground uppercase">Atributos</p>
                   <dl className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                     <div className="flex flex-col gap-1 rounded-lg border border-border bg-background p-2.5">
-                      <dt className="text-[0.65rem] tracking-[0.12em] text-muted-foreground uppercase">Edição</dt>
+                      <dt className="text-[0.65rem] tracking-[0.12em] text-muted-foreground uppercase">
+                        Edição <span className="tracking-normal normal-case">(opcional)</span>
+                      </dt>
                       <dd className="truncate text-sm">{card.setName || "—"}</dd>
                     </div>
                     <div className="flex flex-col gap-1 rounded-lg border border-border bg-background p-2.5">
-                      <dt className="text-[0.65rem] tracking-[0.12em] text-muted-foreground uppercase">Raridade</dt>
+                      <dt className="text-[0.65rem] tracking-[0.12em] text-muted-foreground uppercase">
+                        Raridade <span className="tracking-normal normal-case">(opcional)</span>
+                      </dt>
                       <dd className="truncate text-sm text-primary">{card.rarity || "—"}</dd>
                     </div>
                     <div className="flex flex-col gap-1 rounded-lg border border-border bg-background p-2.5">
-                      <dt className="text-[0.65rem] tracking-[0.12em] text-muted-foreground uppercase">Número</dt>
+                      <dt className="text-[0.65rem] tracking-[0.12em] text-muted-foreground uppercase">
+                        Número <span className="tracking-normal normal-case">(opcional)</span>
+                      </dt>
                       <dd className="truncate text-sm">{formatCollectorNumber(card.number)}</dd>
                     </div>
                   </dl>
@@ -251,7 +259,9 @@ export function LotForm({ card, onCreated, createLot }: LotFormProps) {
                   </FieldLegend>
                   <FieldGroup className="grid gap-4 sm:grid-cols-2">
                     <Field data-invalid={errors.starts ? true : undefined}>
-                      <FieldLabel htmlFor="lot-start">Início</FieldLabel>
+                      <FieldLabel htmlFor="lot-start" className="gap-0">
+                        Início <span className="text-destructive">*</span>
+                      </FieldLabel>
                       <Input
                         id="lot-start"
                         type="datetime-local"
@@ -262,7 +272,9 @@ export function LotForm({ card, onCreated, createLot }: LotFormProps) {
                       {errors.starts ? <FieldError>{errors.starts}</FieldError> : null}
                     </Field>
                     <Field data-invalid={errors.ends ? true : undefined}>
-                      <FieldLabel htmlFor="lot-end">Fim</FieldLabel>
+                      <FieldLabel htmlFor="lot-end" className="gap-0">
+                        Fim <span className="text-destructive">*</span>
+                      </FieldLabel>
                       <Input
                         id="lot-end"
                         type="datetime-local"
@@ -277,7 +289,9 @@ export function LotForm({ card, onCreated, createLot }: LotFormProps) {
 
                 <FieldGroup className="grid gap-4 sm:grid-cols-2">
                   <Field data-invalid={errors.minimum ? true : undefined}>
-                    <FieldLabel htmlFor="lot-minimum">Lance mínimo</FieldLabel>
+                    <FieldLabel htmlFor="lot-minimum" className="gap-0">
+                      Lance mínimo <span className="text-destructive">*</span>
+                    </FieldLabel>
                     <InputGroup className="h-11">
                       <InputGroupAddon>
                         <InputGroupText>R$</InputGroupText>
@@ -297,7 +311,9 @@ export function LotForm({ card, onCreated, createLot }: LotFormProps) {
                     {errors.minimum ? <FieldError>{errors.minimum}</FieldError> : null}
                   </Field>
                   <Field data-invalid={errors.increment ? true : undefined}>
-                    <FieldLabel htmlFor="lot-increment">Incremento</FieldLabel>
+                    <FieldLabel htmlFor="lot-increment" className="gap-1">
+                      Incremento <span className="font-normal text-muted-foreground">(opcional)</span>
+                    </FieldLabel>
                     <InputGroup className="h-11">
                       <InputGroupAddon>
                         <InputGroupText>R$</InputGroupText>

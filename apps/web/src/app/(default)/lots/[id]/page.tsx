@@ -15,6 +15,7 @@ import LotPageClient from "./page-client"
 type LotView = {
   lot: ShowcaseLot
   condition: string | null
+  cancelled: boolean
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -144,6 +145,16 @@ async function readPayload(response: Response): Promise<unknown> {
   }
 }
 
+function roomView(payload: unknown): LotView | null {
+  if (!isRecord(payload)) return null
+
+  const cancelled = text(payload.status).toLowerCase() === "cancelled"
+  const lot = parseShowcaseLot(cancelled ? { ...payload, status: "closed" } : payload)
+  if (!lot) return null
+
+  return { lot, condition: readCondition(payload), cancelled }
+}
+
 const loadLot = cache(async (id: string): Promise<LotView | "missing" | "error"> => {
   if (!/^[1-9]\d*$/.test(id)) return "missing"
 
@@ -152,13 +163,9 @@ const loadLot = cache(async (id: string): Promise<LotView | "missing" | "error">
     if (response.status === 404) return "missing"
     if (!response.ok) return "error"
 
-    const payload = normalize(await readPayload(response))
-    if (isRecord(payload) && text(payload.status).toLowerCase() === "cancelled") return "missing"
-
-    const lot = parseShowcaseLot(payload)
-    if (!lot || !isRecord(payload)) return "error"
-
-    return { lot, condition: readCondition(payload) }
+    const view = roomView(normalize(await readPayload(response)))
+    if (!view) return "error"
+    return view
   } catch {
     return "error"
   }
@@ -203,6 +210,7 @@ export default async function LotPage({ params }: { params: Promise<{ id: string
       condition={view.condition}
       viewerId={await sessionUserId()}
       placeBid={placeBid}
+      cancelled={view.cancelled}
     />
   )
 }

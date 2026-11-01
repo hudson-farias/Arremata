@@ -5,9 +5,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import Session
 from database.bids import BidsORM
+from database.lots import LotsORM
+from database.settlements import SettlementsORM
+from services.chain import assess_chain
 
 RECENT_LIMIT = 20
 TWO_MINUTES = timedelta(minutes = 2)
+
+
+class LotError(Exception):
+    def __init__(self, status_code: int, detail: str):
+        super().__init__(detail)
+        self.status_code = status_code
+        self.detail = detail
 
 
 def now_utc() -> datetime:
@@ -113,15 +123,31 @@ async def leading_bidder(lot_id: int, db: AsyncSession | None = None) -> int | N
     return None if bidder_id is None else int(bidder_id)
 
 
-async def recent_bids(lot_id: int, db: AsyncSession | None = None, limit: int | None = RECENT_LIMIT) -> list[dict]:
-    stmt = (
-        select(BidsORM.amount_cents, BidsORM.created_at, BidsORM.bidder_id)
-        .where(BidsORM.lot_id == lot_id)
-        .order_by(BidsORM.created_at.desc(), BidsORM.id.desc())
-    )
+def published_bid(row: dict) -> dict:
+    return {
+        'amount': int(row['amount_cents']),
+        'created_at': aware(row['created_at']),
+        'bidder': int(row['bidder_id']),
+        'position': int(row['position']),
+        'hash': row['hash'],
+        'prev_hash': row['prev_hash'],
+    }
 
-    if limit is not None:
-        stmt = stmt.limit(limit)
+
+async def load_bids(lot_id: int, db: AsyncSession | None = None) -> list[dict]:
+    stmt = (
+        select(
+            BidsORM.id,
+            BidsORM.position,
+            BidsORM.amount_cents,
+            BidsORM.created_at,
+            BidsORM.bidder_id,
+            BidsORM.prev_hash,
+            BidsORM.hash,
+        )
+        .where(BidsORM.lot_id == lot_id)
+        .order_by(BidsORM.position.asc(), BidsORM.id.asc())
+    )
 
     if db is not None:
         rows = (await db.execute(stmt)).all()
@@ -131,12 +157,41 @@ async def recent_bids(lot_id: int, db: AsyncSession | None = None, limit: int | 
 
     return [
         {
-            'amount': int(amount),
-            'created_at': aware(created_at),
-            'bidder': int(bidder_id),
+            'id': int(bid_id),
+            'position': int(position),
+            'amount_cents': int(amount_cents),
+            'created_at': created_at,
+            'bidder_id': int(bidder_id),
+            'prev_hash': prev_hash,
+            'hash': digest,
         }
-        for amount, created_at, bidder_id in rows
+        for bid_id, position, amount_cents, created_at, bidder_id, prev_hash, digest in rows
     ]
+
+
+async def _chain_settlement(lot_id: int, db: AsyncSession | None) -> dict | None:
+    from services.settlement import settlement_for
+
+    recorded = await settlement_for(lot_id, db)
+
+    if recorded is None:
+        return None
+
+    return {
+        'chain_head': recorded['chain_head'],
+        'winner_id': recorded['winner'],
+        'amount_cents': int(recorded['amount']),
+    }
+
+
+async def recent_bids(lot_id: int, db: AsyncSession | None = None, limit: int | None = RECENT_LIMIT) -> list[dict]:
+    rows = await load_bids(lot_id, db)
+    rows.sort(key = lambda row: (aware(row['created_at']), row['id']), reverse = True)
+
+    if limit is not None:
+        rows = rows[:limit]
+
+    return [published_bid(row) for row in rows]
 
 
 def result_of(status: str, bids: int):
@@ -216,6 +271,47 @@ async def auctioneer_lot(
     }
 
 
+async def cancel_owned_lot(lot_id: int, owner_id: int) -> dict:
+    async with Session() as db:
+        lot = (
+            await db.execute(
+                select(LotsORM).where(LotsORM.id == lot_id).with_for_update()
+            )
+        ).scalars().first()
+
+        if lot is None or lot.owner_id != owner_id:
+            raise LotError(404, 'lote não encontrado')
+
+        if lot.cancelled_at is not None:
+            raise LotError(409, 'lote cancelado')
+
+        moment = now_utc()
+
+        if status_of(lot, moment) == 'closed':
+            raise LotError(409, 'lote encerrado')
+
+        settled = (
+            await db.execute(
+                select(SettlementsORM.id).where(SettlementsORM.lot_id == lot.id)
+            )
+        ).scalar_one_or_none()
+
+        if settled is not None:
+            raise LotError(409, 'lote encerrado')
+
+        lot.cancelled_at = moment
+        summary = await bid_summary(int(lot.id), db)
+        leader_id = await leading_bidder(int(lot.id), db)
+        payload = await auctioneer_lot(lot, moment, summary = summary, db = db)
+        published_id = int(lot.id)
+        await db.commit()
+
+    from services.live import publish_cancelled
+
+    await publish_cancelled(published_id, leader_id)
+    return payload
+
+
 async def public_lot(
     lot,
     moment: datetime | None = None,
@@ -233,7 +329,24 @@ async def public_lot(
 
     bids, amount = summary
     attributes = attributes_of(lot)
-    history = await recent_bids(lot.id, db, bid_limit) if include_bids else []
+    rows = await load_bids(lot.id, db)
+    intact, head = assess_chain(
+        lot_id = int(lot.id),
+        minimum_bid_cents = int(lot.minimum_bid),
+        increment_cents = int(lot.increment_cents),
+        starts_at = lot.starts_at,
+        bids = rows,
+        settlement = await _chain_settlement(lot.id, db),
+    )
+    history = []
+
+    if include_bids:
+        visible = sorted(rows, key = lambda row: (aware(row['created_at']), row['id']), reverse = True)
+
+        if bid_limit is not None:
+            visible = visible[:bid_limit]
+
+        history = [published_bid(row) for row in visible]
 
     return {
         'id': lot.id,
@@ -252,4 +365,6 @@ async def public_lot(
         'rarity': attributes.get('rarity'),
         'number': attributes.get('number'),
         'result': await result_for(status, bids, lot.id, db),
+        'chain_intact': intact,
+        'chain_head': head,
     }

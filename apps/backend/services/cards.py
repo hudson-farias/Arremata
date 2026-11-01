@@ -6,6 +6,14 @@ from env import POKEMON_TCG_API_URL
 from utils.redis import cache_get, cache_set
 
 
+def name_query(query: str) -> str:
+    term = query.replace('*', '').strip().lower()
+    if not term:
+        return ''
+
+    return f'name:*{term}*'
+
+
 class Cards:
     def __init__(self):
         self.url = POKEMON_TCG_API_URL.rstrip('/')
@@ -14,9 +22,13 @@ class Cards:
         self.page_size = 12
 
     def _key(self, mode: str, query: str) -> str:
-        return f'cards:{mode}:{query.strip().lower()}'
+        return f'cards:{mode}:{query}'
 
     async def _load(self, mode: str, query: str, page_size: int, parse):
+        query = name_query(query)
+        if not query:
+            return parse([])
+
         key = self._key(mode, query)
 
         try:
@@ -30,7 +42,7 @@ class Cards:
             async with AsyncClient(timeout = self.timeout) as client:
                 response = await client.get(
                     f'{self.url}/cards',
-                    params = {'q': f'name:{query.strip()}', 'pageSize': page_size},
+                    params = {'q': query, 'pageSize': page_size},
                 )
                 response.raise_for_status()
                 payload = response.json()

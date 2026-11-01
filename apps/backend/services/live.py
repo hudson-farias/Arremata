@@ -22,22 +22,33 @@ def encode_lot(lot: dict) -> dict:
     return PublicLot.model_validate(lot).model_dump(mode = 'json')
 
 
-async def publish_lot(lot_id: int, lot: dict, leader_id: int | None) -> None:
+async def _publish(lot_id: int, payload: dict, failure: str) -> None:
     client = get_client(socket_timeout = PUBLISH_TIMEOUT, socket_connect_timeout = PUBLISH_TIMEOUT)
 
     try:
-        body = dumps({
-            'lot': encode_lot(lot),
-            'leader_id': leader_id,
-        })
-        await client.publish(channel(lot_id), body)
+        await client.publish(channel(lot_id), dumps(payload))
     except Exception:
-        log.exception('falha ao publicar lance do lote %s', lot_id)
+        log.exception(failure, lot_id)
     finally:
         try:
             await client.aclose()
         except Exception:
-            log.exception('falha ao fechar o redis depois do lance %s', lot_id)
+            log.exception('falha ao fechar o redis depois do lote %s', lot_id)
+
+
+async def publish_lot(lot_id: int, lot: dict, leader_id: int | None) -> None:
+    await _publish(lot_id, {
+        'lot': encode_lot(lot),
+        'leader_id': leader_id,
+    }, 'falha ao publicar lance do lote %s')
+
+
+async def publish_cancelled(lot_id: int, leader_id: int | None) -> None:
+    await _publish(lot_id, {
+        'type': 'cancelled',
+        'lot_id': lot_id,
+        'leader_id': leader_id,
+    }, 'falha ao publicar cancelamento do lote %s')
 
 
 class LotRooms:
@@ -102,6 +113,41 @@ class LotRooms:
 
         try:
             payload = loads(data)
+        except (TypeError, ValueError):
+            log.exception('mensagem ao vivo inválida')
+            return
+
+        if not isinstance(payload, dict):
+            log.exception('mensagem ao vivo inválida')
+            return
+
+        if payload.get('type') == 'cancelled':
+            await self._deliver_cancelled(payload)
+            return
+
+        await self._deliver_lot(payload)
+
+    async def _viewers(self, lot_id: int) -> list[tuple[WebSocket, int | None]]:
+        async with self._lock:
+            return [
+                (socket, self._users.get(socket))
+                for socket in self._rooms.get(lot_id, ())
+            ]
+
+    async def _send(self, lot_id: int, viewers: list[tuple[WebSocket, int | None]], body_for) -> None:
+        stale = []
+
+        for socket, user_id in viewers:
+            try:
+                await socket.send_json(body_for(user_id))
+            except Exception:
+                stale.append(socket)
+
+        for socket in stale:
+            await self.detach(socket, lot_id)
+
+    async def _deliver_lot(self, payload: dict) -> None:
+        try:
             lot = payload['lot']
             lot_id = int(lot['id'])
             leader_raw = payload.get('leader_id')
@@ -110,28 +156,38 @@ class LotRooms:
             log.exception('mensagem ao vivo inválida')
             return
 
-        async with self._lock:
-            viewers = [
-                (socket, self._users.get(socket))
-                for socket in self._rooms.get(lot_id, ())
-            ]
+        viewers = await self._viewers(lot_id)
 
-        stale = []
-
-        for socket, user_id in viewers:
+        def body_for(user_id: int | None) -> dict:
             leading = user_id is not None and leader_id is not None and user_id == leader_id
+            return {
+                'type': 'lot',
+                'lot': lot,
+                'leading': leading,
+            }
 
-            try:
-                await socket.send_json({
-                    'type': 'lot',
-                    'lot': lot,
-                    'leading': leading,
-                })
-            except Exception:
-                stale.append(socket)
+        await self._send(lot_id, viewers, body_for)
 
-        for socket in stale:
-            await self.detach(socket, lot_id)
+    async def _deliver_cancelled(self, payload: dict) -> None:
+        try:
+            lot_id = int(payload['lot_id'])
+            leader_raw = payload.get('leader_id')
+            leader_id = None if leader_raw is None else int(leader_raw)
+        except (KeyError, TypeError, ValueError):
+            log.exception('mensagem ao vivo inválida')
+            return
+
+        viewers = await self._viewers(lot_id)
+
+        def body_for(user_id: int | None) -> dict:
+            leading = user_id is not None and leader_id is not None and user_id == leader_id
+            return {
+                'type': 'cancelled',
+                'lot_id': lot_id,
+                'leading': leading,
+            }
+
+        await self._send(lot_id, viewers, body_for)
 
 
 lot_rooms = LotRooms()

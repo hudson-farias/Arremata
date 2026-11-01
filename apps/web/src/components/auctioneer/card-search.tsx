@@ -66,7 +66,9 @@ export function CardSearch({
         >
           <FieldGroup>
             <Field data-invalid={queryError ? true : undefined}>
-              <FieldLabel htmlFor="card-query">Nome da carta</FieldLabel>
+              <FieldLabel htmlFor="card-query" className="gap-0">
+                Nome da carta <span className="text-destructive">*</span>
+              </FieldLabel>
               <div className="flex items-center gap-2">
                 <InputGroup className="h-11">
                   <InputGroupAddon>
