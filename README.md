@@ -136,5 +136,6 @@ Checklist para confirmar no fim do desenvolvimento.
 - [x] Docker Compose.
 - [x] Testes automatizados.
 - [x] Dark mode.
+- [x] CI CD.
 
 Fora de escopo: nota fiscal, revenda entre usuários, app nativo e recuperação de senha não entram.
