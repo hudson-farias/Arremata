@@ -11,26 +11,17 @@ Copie os arquivos de ambiente e suba o projeto:
 ```bash
 cp .env.example .env
 cp apps/backend/.env.example apps/backend/.env
+cp apps/web/.env.example apps/web/.env
 docker compose -p arremata --env-file .env -f infrastructure/docker-compose.yml up -d --build
 ```
 
-O site abre em http://localhost:3000.
+Ao subir, o container da API aplica as migrations e a seed. O site abre em http://localhost:3000.
 
 ## Dados de exemplo
 
-Na pasta `apps/backend`, com o schema já migrado:
+As contas entram com o Compose, junto da API. Não é preciso rodar a seed à parte.
 
-```bash
-python seed.py
-```
-
-No container:
-
-```bash
-docker compose -p arremata exec api python seed.py
-```
-
-Contas: `leiloeiro@arremata.dev`, `ana@arremata.dev` e `bruno@arremata.dev`. Senha: `leilao123`. Rodar de novo não duplica.
+Contas: `leiloeiro@arremata.dev`, `ana@arremata.dev` e `bruno@arremata.dev`. Senha: `leilao123`. Subir de novo não duplica.
 
 ## Cadeia de lances
 
