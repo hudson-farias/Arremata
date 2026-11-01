@@ -2,7 +2,7 @@
 
 Casa de leilões online de cartas colecionáveis. O leiloeiro publica os lotes. O licitante acompanha, deposita um saldo simulado e dá lances ao vivo.
 
-O site é Next.js, a API é Python, o banco é Postgres e há cache. Tudo sobe com Docker.
+O site é Next.js, a API é FatAPI, o banco é Postgres e há cache. Tudo sobe com Docker.
 
 ## Como rodar
 
