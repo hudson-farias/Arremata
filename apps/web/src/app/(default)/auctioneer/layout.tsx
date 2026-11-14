@@ -10,5 +10,9 @@ export default async function AuctioneerLayout({ children }: { children: ReactNo
     redirect("/login?next=/auctioneer")
   }
 
+  if ((await API.sessionRole()) !== "auctioneer") {
+    redirect("/")
+  }
+
   return children
 }

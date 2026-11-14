@@ -4,9 +4,10 @@ import { useEffect, useRef, useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
+import { SOCKET } from "@/api/socket"
 import { BidConsole } from "@/components/lots/bid-console"
 import { ConditionReport } from "@/components/lots/condition-report"
-import { lotLiveURL, parseLiveLotEvent } from "@/components/lots/live"
+import { parseLiveLotEvent } from "@/components/lots/live"
 import { LotShowcase } from "@/components/lots/lot-showcase"
 import {
   bidFloorCents,
@@ -94,12 +95,14 @@ export default function LotPageClient({
   viewerId: initialViewerId,
   placeBid,
   cancelled: initiallyCancelled = false,
+  canBid,
 }: {
   lot: ShowcaseLot
   condition: string | null
   viewerId: number | null
   placeBid: (id: string, amount: number) => Promise<PlaceBidResult>
   cancelled?: boolean
+  canBid: boolean
 }) {
   const router = useRouter()
   const signature = bidSignature(initialLot)
@@ -223,7 +226,8 @@ export default function LotPageClient({
     const connect = () => {
       if (stopped || cancelledRef.current) return
 
-      const next = new WebSocket(lotLiveURL(initialLot.id))
+      const next = SOCKET.connect(`/lots/${initialLot.id}/live`)
+      if (!next) return
       socket = next
 
       next.onmessage = (message) => {
@@ -365,6 +369,7 @@ export default function LotPageClient({
             amount={amount}
             error={error}
             pending={pending}
+            canBid={canBid}
             onAmountChange={(value) => {
               setAmount(value)
               setError(null)

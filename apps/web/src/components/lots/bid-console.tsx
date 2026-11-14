@@ -103,6 +103,7 @@ export function BidConsole({
   amount,
   error,
   pending,
+  canBid,
   onAmountChange,
   onSubmit,
 }: {
@@ -117,6 +118,7 @@ export function BidConsole({
   amount: string
   error: string | null
   pending: boolean
+  canBid: boolean
   onAmountChange: (value: string) => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
 }) {
@@ -146,42 +148,44 @@ export function BidConsole({
           {!cancelled && position === "outbid" ? <p className="text-sm font-medium text-muted-foreground">Superado</p> : null}
         </div>
 
-        <form className="flex flex-col gap-3" onSubmit={onSubmit}>
-          <Field data-invalid={error ? true : undefined}>
-            <FieldLabel htmlFor="lot-bid">Seu lance</FieldLabel>
-            <InputGroup className="h-11">
-              <InputGroupAddon>
-                <InputGroupText>R$</InputGroupText>
-              </InputGroupAddon>
-              <InputGroupInput
-                id="lot-bid"
-                name="bid"
-                type="number"
-                inputMode="decimal"
-                min="0.01"
-                step="0.01"
-                value={amount}
-                disabled={!open || pending}
-                aria-invalid={error ? true : undefined}
-                aria-describedby={describedBy}
-                onChange={(event) => onAmountChange(event.target.value)}
-              />
-            </InputGroup>
-            {hint ? <FieldDescription id="lot-bid-hint">{hint}</FieldDescription> : null}
-            {error ? <FieldError id="lot-bid-error">{error}</FieldError> : null}
-          </Field>
+        {canBid ? (
+          <form className="flex flex-col gap-3" onSubmit={onSubmit}>
+            <Field data-invalid={error ? true : undefined}>
+              <FieldLabel htmlFor="lot-bid">Seu lance</FieldLabel>
+              <InputGroup className="h-11">
+                <InputGroupAddon>
+                  <InputGroupText>R$</InputGroupText>
+                </InputGroupAddon>
+                <InputGroupInput
+                  id="lot-bid"
+                  name="bid"
+                  type="number"
+                  inputMode="decimal"
+                  min="0.01"
+                  step="0.01"
+                  value={amount}
+                  disabled={!open || pending}
+                  aria-invalid={error ? true : undefined}
+                  aria-describedby={describedBy}
+                  onChange={(event) => onAmountChange(event.target.value)}
+                />
+              </InputGroup>
+              {hint ? <FieldDescription id="lot-bid-hint">{hint}</FieldDescription> : null}
+              {error ? <FieldError id="lot-bid-error">{error}</FieldError> : null}
+            </Field>
 
-          <Button type="submit" className="h-11 w-full" disabled={!open || pending}>
-            {pending ? <Spinner data-icon="inline-start" /> : <Gavel data-icon="inline-start" />}
-            Dar lance
-          </Button>
+            <Button type="submit" className="h-11 w-full" disabled={!open || pending}>
+              {pending ? <Spinner data-icon="inline-start" /> : <Gavel data-icon="inline-start" />}
+              Dar lance
+            </Button>
 
-          {open ? null : (
-            <p id="lot-bid-hint" className="text-center text-sm text-muted-foreground">
-              {cancelled ? "O lote foi cancelado." : "O pregão não está aberto."}
-            </p>
-          )}
-        </form>
+            {open ? null : (
+              <p id="lot-bid-hint" className="text-center text-sm text-muted-foreground">
+                {cancelled ? "O lote foi cancelado." : "O pregão não está aberto."}
+              </p>
+            )}
+          </form>
+        ) : null}
 
         {lot.bids.length > 0 ? (
           <div className="flex flex-col gap-2 border-t border-border pt-4">

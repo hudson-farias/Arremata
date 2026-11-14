@@ -3,7 +3,7 @@ from fastapi import APIRouter, Cookie, Depends, HTTPException, Path, Query, WebS
 from database.lots import LotsORM
 from database.users import UsersORM
 from models.lot import BidCreate, LotReceipt, PlacedBid, PublicLot
-from routers import session_owner
+from routers import require_bidder
 from services.bids import BidError, place_bid
 from services.live import encode_lot, lot_rooms
 from services.lots import RECENT_LIMIT, leading_bidder, now_utc, public_lot, status_of, summaries_for
@@ -143,7 +143,7 @@ async def live_lot(
 async def place_lot_bid(
     body: BidCreate,
     lot_id: int = Path(gt = 0),
-    bidder_id: int = Depends(session_owner),
+    bidder_id: int = Depends(require_bidder),
 ):
     try:
         return await place_bid(lot_id, bidder_id, body.amount)

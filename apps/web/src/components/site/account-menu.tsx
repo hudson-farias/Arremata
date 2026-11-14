@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-export function AccountMenu() {
+export function AccountMenu({ role }: { role: "auctioneer" | "bidder" | null }) {
   const pathname = usePathname()
 
   return (
@@ -28,12 +28,14 @@ export function AccountMenu() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-56">
         <DropdownMenuGroup>
-          <DropdownMenuItem asChild>
-            <Link href="/auctioneer">
-              <Gavel />
-              Painel do leiloeiro
-            </Link>
-          </DropdownMenuItem>
+          {role === "auctioneer" ? (
+            <DropdownMenuItem asChild>
+              <Link href="/auctioneer">
+                <Gavel />
+                Painel do leiloeiro
+              </Link>
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuItem asChild>
             <Link href="/">
               <LayoutGrid />

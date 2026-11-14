@@ -7,7 +7,7 @@ from database import Session, engine
 from database.bids import BidsORM
 from database.lots import LotsORM
 from database.settlements import SettlementsORM
-from database.users import UsersORM
+from database.users import AUCTIONEER, BIDDER, UsersORM
 from services.chain import bid_message, genesis_message, sign
 from services.lots import aware, now_utc
 
@@ -73,13 +73,14 @@ def _window(steps, starts_at, ends_at):
         previous_at = created_at
 
 
-async def _user(db, email, password_hash, balance_cents):
+async def _user(db, email, password_hash, balance_cents, role):
     user_id = (
         await db.execute(
             insert(UsersORM).values(
                 email = email,
                 password = password_hash,
                 balance_cents = balance_cents,
+                role = role,
             ).returning(UsersORM.id)
         )
     ).scalar_one()
@@ -197,18 +198,21 @@ async def seed():
             AUCTIONEER_EMAIL,
             passwords.hash_password(PASSWORD),
             AUCTIONEER_BALANCE,
+            AUCTIONEER,
         )
         ana_id = await _user(
             db,
             ANA_EMAIL,
             passwords.hash_password(PASSWORD),
             ANA_BALANCE,
+            BIDDER,
         )
         bruno_id = await _user(
             db,
             BRUNO_EMAIL,
             passwords.hash_password(PASSWORD),
             BRUNO_BALANCE,
+            BIDDER,
         )
 
         created = []

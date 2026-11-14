@@ -1,7 +1,11 @@
-from pydantic import BaseModel, field_validator
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class Credentials(BaseModel):
+    model_config = ConfigDict(extra = 'ignore')
+
     email: str
     password: str
 
@@ -24,6 +28,11 @@ class Credentials(BaseModel):
 class UserOut(BaseModel):
     id: int
     email: str
+    role: Literal['auctioneer', 'bidder']
+
+
+class MeOut(BaseModel):
+    role: Literal['auctioneer', 'bidder']
 
 
 class AuthResponse(BaseModel):

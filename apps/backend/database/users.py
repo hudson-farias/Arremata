@@ -3,7 +3,7 @@ from hmac import compare_digest, new as hmac_new
 from secrets import token_bytes
 from time import time
 
-from sqlalchemy import BigInteger, Column, Integer, String, update
+from sqlalchemy import BigInteger, CheckConstraint, Column, Integer, String, update
 
 from database import Base, Session
 from env import TOKEN_SECRET
@@ -12,16 +12,25 @@ from env import TOKEN_SECRET
 ITERATIONS = 600000
 ALGORITHM = 'pbkdf2_sha256'
 MAX_BALANCE_CENTS = 999999999999
+AUCTIONEER = 'auctioneer'
+BIDDER = 'bidder'
 
 
 class UsersORM(Base):
     __tablename__ = 'users'
+    __table_args__ = (
+        CheckConstraint(
+            "role IS NULL OR role IN ('auctioneer', 'bidder')",
+            name = 'users_role_known',
+        ),
+    )
     TOKEN_TTL = 60 * 60 * 24 * 30
 
     id = Column(Integer, primary_key = True, index = True)
     email = Column(String(255), nullable = False, unique = True)
     password = Column(String(255), nullable = False)
     balance_cents = Column(BigInteger, nullable = False, default = 0, server_default = '0')
+    role = Column(String(32), nullable = True)
 
     def hash_password(self, password: str) -> str:
         salt = token_bytes(16)

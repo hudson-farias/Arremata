@@ -30,6 +30,7 @@ async function loadWallet(): Promise<Wallet> {
 
 export default async function DefaultLayout({ children }: { children: ReactNode }) {
   const signedIn = (await API.isAuthenticated()) && (await API.verifyAuthenticated())
+  const role = signedIn ? await API.sessionRole() : null
   const wallet = signedIn ? await loadWallet() : emptyWallet
   const balances = [
     { label: "Saldo total", cents: wallet.total },
@@ -66,7 +67,7 @@ export default async function DefaultLayout({ children }: { children: ReactNode 
                 </dl>
                 <DepositDialog />
                 <ThemeToggle />
-                <AccountMenu />
+                <AccountMenu role={role} />
               </>
             ) : (
               <>

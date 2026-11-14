@@ -1,7 +1,7 @@
 import { cookies } from "next/headers"
 import type { Metadata } from "next"
 
-import { API } from "@/api/server"
+import { API, type SessionRole } from "@/api/server"
 
 import LoginPageClient from "./page-client"
 
@@ -14,40 +14,53 @@ function internalPath(value: string | null): string | null {
   return value
 }
 
-async function login(email: string, password: string): Promise<{ status: number }> {
+async function login(
+  email: string,
+  password: string,
+): Promise<{ status: number; role: SessionRole | null }> {
   "use server"
 
   const response = await API.post("/login", { email, password })
 
-  if (response.status === 201) {
-    let accessToken = ""
+  if (response.status !== 201) return { status: response.status, role: null }
 
-    try {
-      const data = (await response.json()) as { access_token?: string }
-      accessToken = data.access_token ?? ""
-    } catch {
-      accessToken = ""
-    }
+  let accessToken = ""
 
-    const jar = await cookies()
+  try {
+    const data = (await response.json()) as { access_token?: string }
+    accessToken = data.access_token ?? ""
+  } catch {
+    accessToken = ""
+  }
 
-    if (accessToken) {
-      jar.set("TOKEN", accessToken, {
-        maxAge: 60 * 60 * 24 * 30,
-        path: "/",
-        sameSite: "lax",
-        httpOnly: false,
-      })
-    }
+  const jar = await cookies()
 
-    jar.set("ISAUTH", "true", {
+  if (accessToken) {
+    jar.set("TOKEN", accessToken, {
+      maxAge: 60 * 60 * 24 * 30,
       path: "/",
       sameSite: "lax",
       httpOnly: false,
     })
   }
 
-  return { status: response.status }
+  jar.set("ISAUTH", "true", {
+    path: "/",
+    sameSite: "lax",
+    httpOnly: false,
+  })
+
+  let role: SessionRole | null = null
+
+  if (accessToken) {
+    try {
+      role = await API.sessionRole(accessToken)
+    } catch {
+      role = null
+    }
+  }
+
+  return { status: response.status, role }
 }
 
 export default async function LoginPage({

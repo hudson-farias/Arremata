@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.exc import IntegrityError
 
-from database.users import UsersORM
-from models.user import AuthResponse, Credentials, PasswordChange, UserOut
-from routers import has_authenticated, session_owner
+from database.users import BIDDER, UsersORM
+from models.user import AuthResponse, Credentials, MeOut, PasswordChange, UserOut
+from routers import session_owner
 
 
 router = APIRouter()
@@ -17,12 +17,16 @@ async def register(body: Credentials):
         raise HTTPException(status_code = 409, detail = 'email já existe')
 
     try:
-        await users.create(email = body.email, password = users.hash_password(body.password))
+        await users.create(
+            email = body.email,
+            password = users.hash_password(body.password),
+            role = BIDDER,
+        )
     except IntegrityError:
         raise HTTPException(status_code = 409, detail = 'email já existe')
 
     created = await users.find_one(email = body.email)
-    return {'id': created.id, 'email': created.email}
+    return {'id': created.id, 'email': created.email, 'role': created.role}
 
 
 @router.post('/login', status_code = 201, response_model = AuthResponse)
@@ -44,9 +48,14 @@ async def login(body: Credentials, response: Response):
     return {'access_token': access_token, 'token_type': 'bearer'}
 
 
-@router.get('/me', status_code = 204)
-async def me(_: str = Depends(has_authenticated)):
-    return
+@router.get('/me', status_code = 200, response_model = MeOut)
+async def me(user_id: int = Depends(session_owner)):
+    user = await UsersORM().find_one(id = user_id)
+
+    if not user:
+        raise HTTPException(status_code = 401, detail = 'token inválido')
+
+    return {'role': user.role}
 
 
 @router.patch('/password', status_code = 204)

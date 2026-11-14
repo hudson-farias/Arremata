@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from database.lots import LotsORM
 from models.lot import AuctioneerLot, LotCreate, LotUpdate
-from routers import session_owner
+from routers import require_auctioneer
 from services.lots import LotError, auctioneer_lot, cancel_owned_lot, now_utc, status_of, summaries_for
 from services.settlement import settle_due
 
@@ -11,7 +11,7 @@ router = APIRouter(prefix = '/auctioneer', tags = ['auctioneer'])
 
 
 @router.post('/lots', status_code = 201, response_model = AuctioneerLot)
-async def create_lot(body: LotCreate, owner_id: int = Depends(session_owner)):
+async def create_lot(body: LotCreate, owner_id: int = Depends(require_auctioneer)):
     created = await LotsORM().create(
         owner_id = owner_id,
         card_id = body.card_id,
@@ -28,7 +28,7 @@ async def create_lot(body: LotCreate, owner_id: int = Depends(session_owner)):
 
 
 @router.get('/lots', response_model = list[AuctioneerLot])
-async def list_own_lots(owner_id: int = Depends(session_owner)):
+async def list_own_lots(owner_id: int = Depends(require_auctioneer)):
     await settle_due()
     moment = now_utc()
     rows = await LotsORM().find_many(owner_id = owner_id)
@@ -37,7 +37,7 @@ async def list_own_lots(owner_id: int = Depends(session_owner)):
 
 
 @router.delete('/lots/{id}', response_model = AuctioneerLot)
-async def cancel_lot(id: int, owner_id: int = Depends(session_owner)):
+async def cancel_lot(id: int, owner_id: int = Depends(require_auctioneer)):
     try:
         return await cancel_owned_lot(id, owner_id)
     except LotError as error:
@@ -45,7 +45,7 @@ async def cancel_lot(id: int, owner_id: int = Depends(session_owner)):
 
 
 @router.patch('/lots/{id}', response_model = AuctioneerLot)
-async def update_lot(id: int, body: LotUpdate, owner_id: int = Depends(session_owner)):
+async def update_lot(id: int, body: LotUpdate, owner_id: int = Depends(require_auctioneer)):
     lots = LotsORM()
     lot = await lots.find_one(id = id)
 

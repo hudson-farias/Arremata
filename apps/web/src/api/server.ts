@@ -1,6 +1,14 @@
+import { cache } from 'react'
 import { cookies } from 'next/headers'
 
+export type SessionRole = 'auctioneer' | 'bidder'
+
 type SearchParams = Record<string, string | string[] | undefined>
+
+type Session = {
+  authenticated: boolean
+  role: SessionRole | null
+}
 
 const apiBaseURL = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '')
 
@@ -63,9 +71,25 @@ class ApiServer {
     return this.request('DELETE', endpoint)
   }
 
+  private loadSession = cache(async (): Promise<Session> => readSession(await this.get('/me')))
+
   async verifyAuthenticated(): Promise<boolean> {
-    const response = await this.get('/me')
-    return response.status === 204
+    return (await this.loadSession()).authenticated
+  }
+
+  async sessionRole(accessToken?: string): Promise<SessionRole | null> {
+    if (!accessToken) return (await this.loadSession()).role
+
+    const response = await fetch(`${apiBaseURL}/me`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      cache: 'no-store',
+    })
+
+    return (await readSession(response)).role
   }
 
   async isAuthenticated(): Promise<boolean> {
@@ -76,3 +100,21 @@ class ApiServer {
 }
 
 export const API = new ApiServer()
+
+function parseRole(payload: unknown): SessionRole | null {
+  if (typeof payload !== 'object' || payload === null) return null
+
+  const role = (payload as { role?: unknown }).role
+  if (role === 'auctioneer' || role === 'bidder') return role
+  return null
+}
+
+async function readSession(response: Response): Promise<Session> {
+  if (response.status !== 200) return { authenticated: false, role: null }
+
+  try {
+    return { authenticated: true, role: parseRole(await response.json()) }
+  } catch {
+    return { authenticated: true, role: null }
+  }
+}

@@ -1,5 +1,3 @@
-import nookies from "nookies"
-
 import { parseShowcaseLot, type ShowcaseLot } from "@/components/lots/model"
 
 export type LiveLotEvent =
@@ -16,16 +14,6 @@ export type LiveLotEvent =
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
-}
-
-// O browser fala com a API por /backend. O rewrite do Next 16 encaminha o upgrade.
-export function lotLiveURL(lotId: string): string {
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
-  const url = new URL(`${protocol}//${window.location.host}/backend/lots/${encodeURIComponent(lotId)}/live`)
-  const token = nookies.get(null).TOKEN
-
-  if (token) url.searchParams.set("token", token)
-  return url.toString()
 }
 
 function lotIdOf(value: unknown): string | null {

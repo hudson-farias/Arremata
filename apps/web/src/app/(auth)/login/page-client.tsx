@@ -12,7 +12,10 @@ export default function LoginPageClient({
   login,
 }: {
   next: string | null
-  login: (email: string, password: string) => Promise<{ status: number }>
+  login: (
+    email: string,
+    password: string,
+  ) => Promise<{ status: number; role: "auctioneer" | "bidder" | null }>
 }) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -37,7 +40,7 @@ export default function LoginPageClient({
       const response = await login(nextEmail, password)
 
       if (response.status === 201) {
-        window.location.href = next ?? "/auctioneer"
+        window.location.href = next ?? (response.role === "auctioneer" ? "/auctioneer" : "/")
         return
       }
 

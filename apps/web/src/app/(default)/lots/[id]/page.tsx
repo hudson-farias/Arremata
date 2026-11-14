@@ -204,6 +204,8 @@ export default async function LotPage({ params }: { params: Promise<{ id: string
   if (view === "missing") notFound()
   if (view === "error") return <LotError />
 
+  const role = (await API.isAuthenticated()) ? await API.sessionRole() : null
+
   return (
     <LotPageClient
       lot={view.lot}
@@ -211,6 +213,7 @@ export default async function LotPage({ params }: { params: Promise<{ id: string
       viewerId={await sessionUserId()}
       placeBid={placeBid}
       cancelled={view.cancelled}
+      canBid={role !== "auctioneer"}
     />
   )
 }

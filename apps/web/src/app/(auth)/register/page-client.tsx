@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
 function loginHref(next: string | null): string {
-  return `/login?next=${encodeURIComponent(next ?? "/auctioneer")}`
+  if (!next) return "/login"
+  return `/login?next=${encodeURIComponent(next)}`
 }
 
 export default function RegisterPageClient({
@@ -147,10 +148,7 @@ export default function RegisterPageClient({
 
       <p className="text-center text-sm text-muted-foreground">
         Já possui credencial?{" "}
-        <Link
-          href={next ? `/login?next=${encodeURIComponent(next)}` : "/login"}
-          className="text-primary underline-offset-4 hover:underline"
-        >
+        <Link href={loginHref(next)} className="text-primary underline-offset-4 hover:underline">
           Entrar
         </Link>
       </p>
