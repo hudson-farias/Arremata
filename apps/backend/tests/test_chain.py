@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 import env
-from services.chain import assess_chain, bid_message, genesis_message, sign
+from services.chain import assess_chain, bid_message, genesis_message, resign_bid_rows, sign
 
 
 STARTS = datetime(2026, 11, 1, 18, 1, tzinfo = timezone.utc)
@@ -207,3 +207,36 @@ def test_prev_hash_invalido_quebra():
     intact, head = assess_chain(bids = lances, **campos())
     assert not intact
     assert head == ponta
+
+
+def test_resign_bid_rows_repara_cadeia_com_segredo_atual():
+    lances, ponta = livro()
+
+    for lance in lances:
+        lance['prev_hash'] = '0' * 64
+        lance['hash'] = '1' * 64
+
+    intact, _head = assess_chain(bids = lances, **campos())
+    assert not intact
+
+    atualizados, head = resign_bid_rows(
+        lot_id = 7,
+        minimum_bid_cents = 1000,
+        increment_cents = 100,
+        starts_at = STARTS,
+        bids = lances,
+    )
+    intact, verified = assess_chain(bids = atualizados, **campos())
+    assert intact
+    assert head == verified == ponta
+
+
+def test_resign_bid_rows_sem_lances_fecha_na_genese():
+    head = resign_bid_rows(
+        lot_id = 7,
+        minimum_bid_cents = 1000,
+        increment_cents = 100,
+        starts_at = STARTS,
+        bids = [],
+    )[1]
+    assert head == sign(genesis_message(7, 1000, 100, STARTS))
