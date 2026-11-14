@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from database.users import UsersORM
 from models.wallet import DepositIn, WalletOut
-from routers import session_owner
+from routers import require_bidder, session_owner
 from services.bids import committed_cents
 from services.settlement import settle_due
 
@@ -28,7 +28,7 @@ async def read_wallet(user_id: int = Depends(session_owner)):
 
 
 @router.post('/wallet/deposits', response_model = WalletOut)
-async def deposit(body: DepositIn, user_id: int = Depends(session_owner)):
+async def deposit(body: DepositIn, user_id: int = Depends(require_bidder)):
     await settle_due()
     users = UsersORM()
     balance = await users.add_balance(user_id, body.amount)

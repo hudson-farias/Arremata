@@ -140,12 +140,14 @@ async def _bids(db, lot_id, card, starts_at, ends_at, steps):
             amount_cents,
             created_at,
             prev_hash,
+            ends_at,
         ))
         await db.execute(insert(BidsORM).values(
             lot_id = lot_id,
             bidder_id = bidder_id,
             amount_cents = amount_cents,
             created_at = created_at,
+            ends_at = ends_at,
             position = position,
             prev_hash = prev_hash,
             hash = digest,

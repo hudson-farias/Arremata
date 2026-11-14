@@ -4,7 +4,7 @@ from sqlalchemy import exists, insert, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database import Session
+from database import Session, Transaction
 from database.bids import BidsORM
 from database.lots import LotsORM
 from database.settlements import SettlementsORM
@@ -72,22 +72,22 @@ async def _due_lot_ids(db: AsyncSession, moment) -> list[int]:
 
 
 async def _settle_one(lot_id: int, moment) -> int | None:
-    async with Session() as db:
+    async with Transaction() as tx:
         try:
-            outcome = await _settle_lot(db, lot_id, moment)
+            outcome = await _settle_lot(tx, lot_id, moment)
 
             if outcome is None:
-                await db.rollback()
+                await tx.rollback()
                 return None
 
             lot, winner_id = outcome
-            await db.commit()
+            await tx.commit()
         except IntegrityError:
-            await db.rollback()
+            await tx.rollback()
             log.warning('liquidação duplicada do lote %s', lot_id)
             return None
         except Exception:
-            await db.rollback()
+            await tx.rollback()
             log.exception('falha ao liquidar o lote %s', lot_id)
             return None
 
@@ -95,22 +95,20 @@ async def _settle_one(lot_id: int, moment) -> int | None:
         return int(lot.id)
 
 
-async def _settle_lot(db: AsyncSession, lot_id: int, moment):
-    lot = (
-        await db.execute(
-            select(LotsORM)
-            .where(LotsORM.id == lot_id)
-            .where(LotsORM.cancelled_at.is_(None))
-            .where(LotsORM.ends_at <= moment)
-            .with_for_update(skip_locked = True)
-        )
-    ).scalars().first()
+async def _settle_lot(tx: Transaction, lot_id: int, moment):
+    lot = await tx.lock_row(
+        select(LotsORM)
+        .where(LotsORM.id == lot_id)
+        .where(LotsORM.cancelled_at.is_(None))
+        .where(LotsORM.ends_at <= moment),
+        skip_locked = True,
+    )
 
     if lot is None:
         return None
 
     existing = (
-        await db.execute(
+        await tx.execute(
             select(SettlementsORM.id).where(SettlementsORM.lot_id == lot.id)
         )
     ).scalar_one_or_none()
@@ -119,7 +117,7 @@ async def _settle_lot(db: AsyncSession, lot_id: int, moment):
         return None
 
     last = (
-        await db.execute(
+        await tx.execute(
             select(BidsORM.bidder_id, BidsORM.amount_cents, BidsORM.hash)
             .where(BidsORM.lot_id == lot.id)
             .order_by(BidsORM.position.desc())
@@ -140,13 +138,13 @@ async def _settle_lot(db: AsyncSession, lot_id: int, moment):
         winner_id = int(last[0])
         amount = int(last[1])
         chain_head = last[2]
-        moved = await _move_funds(db, winner_id, int(lot.owner_id), amount)
+        moved = await _move_funds(tx, winner_id, int(lot.owner_id), amount)
 
         if not moved:
             log.warning('saldo incompatível na liquidação do lote %s', lot.id)
             return None
 
-    await db.execute(insert(SettlementsORM).values(
+    await tx.execute(insert(SettlementsORM).values(
         lot_id = int(lot.id),
         winner_id = winner_id,
         seller_id = int(lot.owner_id),
@@ -157,15 +155,11 @@ async def _settle_lot(db: AsyncSession, lot_id: int, moment):
     return lot, winner_id
 
 
-async def _move_funds(db: AsyncSession, winner_id: int, seller_id: int, amount: int) -> bool:
+async def _move_funds(tx: Transaction, winner_id: int, seller_id: int, amount: int) -> bool:
     by_id = {}
 
     for user_id in sorted({winner_id, seller_id}):
-        user = (
-            await db.execute(
-                select(UsersORM).where(UsersORM.id == user_id).with_for_update()
-            )
-        ).scalars().first()
+        user = await tx.lock(UsersORM, user_id)
 
         if user is None:
             return False
@@ -191,7 +185,7 @@ async def _move_funds(db: AsyncSession, winner_id: int, seller_id: int, amount: 
     if winner_id != seller_id:
         winner.balance_cents = winner_balance - amount
         seller.balance_cents = seller_balance + amount
-        await db.flush()
+        await tx.db.flush()
 
     return True
 

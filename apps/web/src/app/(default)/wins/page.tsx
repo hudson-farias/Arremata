@@ -55,6 +55,10 @@ function WinsFrame({ children }: { children: ReactNode }) {
 }
 
 export default async function WinsPage() {
+  if ((await API.sessionRole()) === "auctioneer") {
+    redirect("/auctioneer")
+  }
+
   const view = await loadWins()
 
   if (view === "unauthorized") {

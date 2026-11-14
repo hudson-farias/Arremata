@@ -6,10 +6,10 @@
 - [x] Socket direto na API, sem rewrite /backend; NEXT_PUBLIC_WS_URL no build.
 - [x] Cookie TOKEN httpOnly; WebSocket sem ?token= na URL.
 - [x] Privacidade: apelido por lote, sorteado no primeiro lance e reutilizado nos seguintes, no lugar do id interno do licitante. A pessoa não escolhe nem edita.
-- [ ] Vitrine filtrada no banco, com índice em datas e `cancelled_at`. A cadeia HMAC inteira só na auditoria.
+- [x] Vitrine filtrada no banco, com índice em datas e `cancelled_at`. A cadeia HMAC inteira só na auditoria.
 - [ ] Front: extrair `useLiveLot` e `useMyLots`, centralizar `readPayload`, `formatRemaining` e os tipos da API, tirar o `setState` durante a renderização da sala.
 - [ ] Testes de integração com Postgres: autorização, concorrência de lance e liquidação.
-- [ ] Auditoria: cheatsheet de versões da chave HMAC.
+- [ ] Auditoria: cheatsheet de versões da chave HMAC — N/A (o desvio era seed × `.env`, não versionamento de chave).
 
 ### Front
 
@@ -39,6 +39,6 @@ Checklist para confirmar no fim do desenvolvimento.
 - [x] Busca e filtro de lotes.
 - [x] Cancelamento de lote com estorno automático.
 - [x] Docker Compose.
-- [ ] Testes automatizados.
 - [x] Dark mode.
 - [x] CI CD.
+- [ ] Testes automatizados.

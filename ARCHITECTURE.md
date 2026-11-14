@@ -22,13 +22,13 @@ Dois papéis no usuário: `auctioneer` e `bidder`. O cadastro não oferece escol
 
 O leiloeiro cria, edita e cancela lote (`require_auctioneer` em `apps/backend/routers/auctioneer-lots.py`). O layout de `/auctioneer` redireciona quem não é leiloeiro. O menu só mostra o painel para esse papel.
 
-O licitante dá lance (`require_bidder` em `apps/backend/routers/lots.py`). O leiloeiro não vê o console de lance. O depósito exige só sessão.
+O licitante dá lance (`require_bidder` em `apps/backend/routers/lots.py`). O leiloeiro não vê o console de lance. O depósito também exige `require_bidder` (`POST /wallet/deposits`); a leitura da carteira segue no dono da sessão.
 
 Na seed, `leiloeiro@arremata.dev` é leiloeiro. `ana@arremata.dev` e `bruno@arremata.dev` são licitantes.
 
 ## Cadeia de lances
 
-Cada lote tem um livro de lances encadeado por HMAC. A auditoria pública (`/lots/[id]/audit`) recalcula a cadeia com a chave da API. O comprovante guarda a ponta.
+Cada lote tem um livro de lances encadeado por HMAC. A auditoria pública (`/lots/[id]/audit`, `GET /lots/{id}?full=true`) recalcula a cadeia com a chave da API. A sala ao vivo, o WebSocket e a vitrine carregam o histórico sem `assess_chain`. O comprovante guarda a ponta.
 
 ### O que se protege
 
@@ -51,12 +51,14 @@ lot|{id do lote}|{lance mínimo em centavos}|{incremento em centavos}|{início d
 Cada lance assina só a própria mensagem. O livro inteiro não entra; entra o hash anterior. A ponta representa o histórico por esse encadeamento.
 
 ```text
-{id do lote}|{posição}|{id do licitante}|{apelido}|{valor em centavos}|{horário do lance}|{hash anterior}
+{id do lote}|{posição}|{id do licitante}|{apelido}|{valor em centavos}|{horário do lance}|{hash anterior}|{fim do lote no momento do lance}
 ```
 
 O apelido é um por licitante em cada lote, no formato `{treinador}-{pokemon}`, em minúsculas e com um hífen só. Exemplo: `red-pikachu`. Ele nasce no primeiro lance daquele par; os lances seguintes copiam o mesmo texto. Outro lote sorteia outro. A pessoa não escolhe nem edita. O id interno continua na mensagem, ao lado do apelido. Saldo, liquidação e quem está ganhando seguem pelo id. A sala, a auditoria, o comprovante e o painel mostram o apelido.
 
-A gênese não muda. A migration que cria o apelido preenche os lances já gravados e não reassina `hash`, `prev_hash` nem `chain_head`. Livro antigo, assinado sem o apelido na mensagem, deixa de fechar na auditoria de propósito.
+O `ends_at` do elo é o fim do lote **depois** do anti-sniping daquele lance (`bids.ends_at`). Não entra na gênese: o fim muda a cada prorrogação e invalidaria todos os `prev_hash` legítimos.
+
+A gênese não muda. A migration que cria o apelido preenche os lances já gravados e não reassina `hash`, `prev_hash` nem `chain_head`. Livro antigo, assinado sem o apelido na mensagem, deixa de fechar na auditoria de propósito. A migration de `bids.ends_at` reassina o livro com o `AUDIT_SECRET` atual.
 
 O algoritmo é HMAC-SHA256: chave e mensagem em UTF-8, saída em hexadecimal minúsculo (64 caracteres). O primeiro lance grava `position` 1 e `prev_hash` igual ao HMAC da gênese. O seguinte soma 1 na `position` e usa como `prev_hash` o `hash` já gravado no lance anterior.
 
@@ -70,11 +72,11 @@ O algoritmo é HMAC-SHA256: chave e mensagem em UTF-8, saída em hexadecimal min
 
 - o HMAC da gênese, com id do lote, lance mínimo, incremento e início;
 - o `prev_hash` de cada lance, igual ao elo anterior (a gênese, no primeiro);
-- o `hash` de cada lance, igual ao HMAC da mensagem daquele lance, com id do lote, posição, id do licitante, apelido gravado em `bids.nickname`, valor, horário e hash anterior;
+- o `hash` de cada lance, igual ao HMAC da mensagem daquele lance, com id do lote, posição, id do licitante, apelido gravado em `bids.nickname`, valor, horário, hash anterior e `ends_at` gravado no elo;
 - as posições, em ordem, exatamente 1, 2, …, n;
 - se houver liquidação, `chain_head`, `winner_id` e `amount_cents` iguais à cabeça, ao `bidder_id` numérico e ao valor do último elo.
 
-Sem liquidação, a checagem para no livro. Quebra a cadeia mudar valor, licitante, apelido ou horário, e também apagar, inserir ou reordenar lances, ou trocar `hash` ou `prev_hash`. Mudar o lance mínimo, o incremento ou o início do lote quebra a gênese, e o primeiro elo deixa de fechar. Liquidação com outra cabeça, outro vencedor ou outro valor também quebra. O vencedor da liquidação continua sendo o id interno, não o texto do apelido.
+Sem liquidação, a checagem para no livro. Quebra a cadeia mudar valor, licitante, apelido, horário ou fim assinado no elo, e também apagar, inserir ou reordenar lances, ou trocar `hash` ou `prev_hash`. Mudar o lance mínimo, o incremento ou o início do lote quebra a gênese, e o primeiro elo deixa de fechar. Liquidação com outra cabeça, outro vencedor ou outro valor também quebra. O vencedor da liquidação continua sendo o id interno, não o texto do apelido.
 
 O desvio da seed está em [BROKEN.md](BROKEN.md).
 
@@ -88,11 +90,11 @@ lot|7|1000|100|2026-11-01T18:01:00.000000+00:00
 hash ilustrativo: 1111111111111111111111111111111111111111111111111111111111111111
 
 Lance 1
-7|1|3|red-pikachu|1500|2026-11-01T18:02:03.000004+00:00|1111111111111111111111111111111111111111111111111111111111111111
+7|1|3|red-pikachu|1500|2026-11-01T18:02:03.000004+00:00|1111111111111111111111111111111111111111111111111111111111111111|2026-11-01T19:00:00.000000+00:00
 hash ilustrativo: 2222222222222222222222222222222222222222222222222222222222222222
 
 Lance 2
-7|2|4|cintia-garchomp|2500|2026-11-01T18:03:00.000000+00:00|2222222222222222222222222222222222222222222222222222222222222222
+7|2|4|cintia-garchomp|2500|2026-11-01T18:03:00.000000+00:00|2222222222222222222222222222222222222222222222222222222222222222|2026-11-01T19:02:00.000000+00:00
 hash ilustrativo: 3333333333333333333333333333333333333333333333333333333333333333
 ```
 
@@ -104,4 +106,4 @@ O encadeamento é o mesmo: cada elo cita o hash do anterior, e a ponta resume o 
 
 ### Desempenho
 
-Só se assina o lance novo — no primeiro, também a gênese, para obter o `prev_hash` — e a auditoria percorre os lances daquele lote uma vez.
+Só se assina o lance novo — no primeiro, também a gênese, para obter o `prev_hash` — e a auditoria (`full=true`) percorre os lances daquele lote uma vez. Sala, WebSocket e vitrine não recalculam a cadeia.

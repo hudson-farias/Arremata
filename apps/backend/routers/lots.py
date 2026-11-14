@@ -32,16 +32,12 @@ async def list_lots(status: str = 'live'):
     await settle_due()
     field, newest_first = order
     moment = now_utc()
-    rows = await LotsORM().find_many()
+    rows = await LotsORM().find_by_status(status, moment)
     stats = await summaries_for([row.id for row in rows])
-    items = []
-
-    for row in rows:
-        item = await public_lot(row, moment, summary = stats[row.id])
-
-        if item['status'] == status:
-            items.append(item)
-
+    items = [
+        await public_lot(row, moment, summary = stats[row.id], verify_chain = False)
+        for row in rows
+    ]
     items.sort(key = lambda item: item['id'])
     items.sort(key = lambda item: item[field], reverse = newest_first)
     return items
@@ -55,7 +51,12 @@ async def read_public_lot(lot_id: int = Path(gt = 0), full: bool = Query(default
     if not lot:
         raise HTTPException(status_code = 404, detail = 'lote não encontrado')
 
-    return await public_lot(lot, include_bids = True, bid_limit = None if full else RECENT_LIMIT)
+    return await public_lot(
+        lot,
+        include_bids = True,
+        bid_limit = None if full else RECENT_LIMIT,
+        verify_chain = full,
+    )
 
 
 @router.get('/lots/{lot_id}/receipt', response_model = LotReceipt)

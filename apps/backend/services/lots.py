@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database import Session
+from database import Session, Transaction
 from database.bids import BidsORM
 from database.lots import LotsORM
 from database.settlements import SettlementsORM
@@ -142,6 +142,7 @@ async def load_bids(lot_id: int, db: AsyncSession | None = None) -> list[dict]:
             BidsORM.position,
             BidsORM.amount_cents,
             BidsORM.created_at,
+            BidsORM.ends_at,
             BidsORM.bidder_id,
             BidsORM.nickname,
             BidsORM.prev_hash,
@@ -163,12 +164,13 @@ async def load_bids(lot_id: int, db: AsyncSession | None = None) -> list[dict]:
             'position': int(position),
             'amount_cents': int(amount_cents),
             'created_at': created_at,
+            'ends_at': ends_at,
             'bidder_id': int(bidder_id),
             'nickname': nickname,
             'prev_hash': prev_hash,
             'hash': digest,
         }
-        for bid_id, position, amount_cents, created_at, bidder_id, nickname, prev_hash, digest in rows
+        for bid_id, position, amount_cents, created_at, ends_at, bidder_id, nickname, prev_hash, digest in rows
     ]
 
 
@@ -275,12 +277,8 @@ async def auctioneer_lot(
 
 
 async def cancel_owned_lot(lot_id: int, owner_id: int) -> dict:
-    async with Session() as db:
-        lot = (
-            await db.execute(
-                select(LotsORM).where(LotsORM.id == lot_id).with_for_update()
-            )
-        ).scalars().first()
+    async with Transaction() as tx:
+        lot = await tx.lock(LotsORM, lot_id)
 
         if lot is None or lot.owner_id != owner_id:
             raise LotError(404, 'lote não encontrado')
@@ -294,7 +292,7 @@ async def cancel_owned_lot(lot_id: int, owner_id: int) -> dict:
             raise LotError(409, 'lote encerrado')
 
         settled = (
-            await db.execute(
+            await tx.execute(
                 select(SettlementsORM.id).where(SettlementsORM.lot_id == lot.id)
             )
         ).scalar_one_or_none()
@@ -303,11 +301,11 @@ async def cancel_owned_lot(lot_id: int, owner_id: int) -> dict:
             raise LotError(409, 'lote encerrado')
 
         lot.cancelled_at = moment
-        summary = await bid_summary(int(lot.id), db)
-        leader_id = await leading_bidder(int(lot.id), db)
-        payload = await auctioneer_lot(lot, moment, summary = summary, db = db)
+        summary = await bid_summary(int(lot.id), tx.db)
+        leader_id = await leading_bidder(int(lot.id), tx.db)
+        payload = await auctioneer_lot(lot, moment, summary = summary, db = tx.db)
         published_id = int(lot.id)
-        await db.commit()
+        await tx.commit()
 
     from services.live import publish_cancelled
 
@@ -323,6 +321,7 @@ async def public_lot(
     bid_limit: int | None = RECENT_LIMIT,
     summary: tuple[int, int | None] | None = None,
     db: AsyncSession | None = None,
+    verify_chain: bool = False,
 ) -> dict:
     moment = aware(moment or now_utc())
     status = status_of(lot, moment)
@@ -332,24 +331,31 @@ async def public_lot(
 
     bids, amount = summary
     attributes = attributes_of(lot)
-    rows = await load_bids(lot.id, db)
-    intact, head = assess_chain(
-        lot_id = int(lot.id),
-        minimum_bid_cents = int(lot.minimum_bid),
-        increment_cents = int(lot.increment_cents),
-        starts_at = lot.starts_at,
-        bids = rows,
-        settlement = await _chain_settlement(lot.id, db),
-    )
     history = []
+    intact = None
+    head = None
+    rows = None
 
-    if include_bids:
+    if include_bids or verify_chain:
+        rows = await load_bids(lot.id, db)
+
+    if include_bids and rows is not None:
         visible = sorted(rows, key = lambda row: (aware(row['created_at']), row['id']), reverse = True)
 
         if bid_limit is not None:
             visible = visible[:bid_limit]
 
         history = [published_bid(row) for row in visible]
+
+    if verify_chain and rows is not None:
+        intact, head = assess_chain(
+            lot_id = int(lot.id),
+            minimum_bid_cents = int(lot.minimum_bid),
+            increment_cents = int(lot.increment_cents),
+            starts_at = lot.starts_at,
+            bids = rows,
+            settlement = await _chain_settlement(lot.id, db),
+        )
 
     return {
         'id': lot.id,

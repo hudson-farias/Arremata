@@ -54,12 +54,14 @@ export function AccountMenu({ role }: { role: "auctioneer" | "bidder" | null }) 
               Carteira
             </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href="/wins">
-              <Trophy />
-              Meus arremates
-            </Link>
-          </DropdownMenuItem>
+          {role !== "auctioneer" ? (
+            <DropdownMenuItem asChild>
+              <Link href="/wins">
+                <Trophy />
+                Meus arremates
+              </Link>
+            </DropdownMenuItem>
+          ) : null}
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>

@@ -1,6 +1,10 @@
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
+import pytest
+from sqlalchemy.dialects import postgresql
+
+from database.lots import LotsORM
 from services.lots import (
     TWO_MINUTES,
     attributes_of,
@@ -31,6 +35,31 @@ def test_status_acompanha_a_janela():
     assert status_of(lote(), INICIO) == 'live'
     assert status_of(lote(), FIM - timedelta(microseconds = 1)) == 'live'
     assert status_of(lote(), FIM) == 'closed'
+
+
+def _sql_of(status: str, moment: datetime) -> str:
+    clause = LotsORM._status_clause(status, moment)
+    return str(clause.compile(dialect = postgresql.dialect(), compile_kwargs = {'literal_binds': True}))
+
+
+def test_status_clause_mapeia_as_janelas():
+    live = _sql_of('live', INICIO)
+    assert 'cancelled_at IS NULL' in live
+    assert 'starts_at <=' in live or 'starts_at < =' in live
+    assert 'ends_at >' in live
+
+    scheduled = _sql_of('scheduled', INICIO)
+    assert 'cancelled_at IS NULL' in scheduled
+    assert 'starts_at >' in scheduled
+
+    closed = _sql_of('closed', FIM)
+    assert 'cancelled_at IS NULL' in closed
+    assert 'ends_at <=' in closed or 'ends_at < =' in closed
+
+
+def test_status_clause_rejeita_status_invalido():
+    with pytest.raises(ValueError, match = 'status inválido'):
+        LotsORM._status_clause('arquivado', INICIO)
 
 
 def test_cancelado_ignora_o_horario():

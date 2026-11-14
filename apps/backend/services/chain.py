@@ -34,10 +34,11 @@ def bid_message(
     amount_cents: int,
     created_at: datetime,
     prev_hash: str,
+    ends_at: datetime,
 ) -> str:
     return (
         f'{int(lot_id)}|{int(position)}|{int(bidder_id)}|{nickname}|{int(amount_cents)}|'
-        f'{chain_timestamp(created_at)}|{prev_hash}'
+        f'{chain_timestamp(created_at)}|{prev_hash}|{chain_timestamp(ends_at)}'
     )
 
 
@@ -111,6 +112,7 @@ def assess_chain(
             int(bid['amount_cents']),
             bid['created_at'],
             stored_prev,
+            bid['ends_at'],
         ))
 
         if not same_digest(stored_hash, expected):

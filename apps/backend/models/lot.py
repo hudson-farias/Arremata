@@ -260,8 +260,8 @@ class PublicLot(BaseModel):
     rarity: str | None = None
     number: str | None = None
     result: LotResult | None = None
-    chain_intact: bool
-    chain_head: str
+    chain_intact: bool | None = None
+    chain_head: str | None = None
 
     @field_validator('minimum_bid', 'increment', mode = 'before')
     @classmethod

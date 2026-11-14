@@ -20,6 +20,7 @@ class BidsORM(Base):
     bidder_id = Column(Integer, ForeignKey('users.id'), nullable = False, index = True)
     amount_cents = Column(BigInteger, nullable = False)
     created_at = Column(DateTime(timezone = True), nullable = False)
+    ends_at = Column(DateTime(timezone = True), nullable = False)
     position = Column(Integer, nullable = False)
     prev_hash = Column(String(64), nullable = False)
     hash = Column(String(64), nullable = False)

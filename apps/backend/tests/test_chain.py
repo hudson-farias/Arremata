@@ -7,6 +7,8 @@ from services.chain import assess_chain, bid_message, genesis_message, sign
 
 
 STARTS = datetime(2026, 11, 1, 18, 1, tzinfo = timezone.utc)
+ENDS = datetime(2026, 11, 1, 19, 0, tzinfo = timezone.utc)
+EXTENDED = datetime(2026, 11, 1, 19, 2, tzinfo = timezone.utc)
 CREATED = datetime(2026, 11, 1, 18, 2, 3, 4, tzinfo = timezone.utc)
 SECOND_AT = datetime(2026, 11, 1, 18, 3, tzinfo = timezone.utc)
 
@@ -23,8 +25,8 @@ def campos(**extras):
     return base
 
 
-def elo(position, bidder_id, nickname, amount, created, prev):
-    digest = sign(bid_message(7, position, bidder_id, nickname, amount, created, prev))
+def elo(position, bidder_id, nickname, amount, created, prev, ends_at = ENDS):
+    digest = sign(bid_message(7, position, bidder_id, nickname, amount, created, prev, ends_at))
     return {
         'id': position,
         'position': position,
@@ -32,6 +34,7 @@ def elo(position, bidder_id, nickname, amount, created, prev):
         'nickname': nickname,
         'amount_cents': amount,
         'created_at': created,
+        'ends_at': ends_at,
         'prev_hash': prev,
         'hash': digest,
     }, digest
@@ -40,7 +43,7 @@ def elo(position, bidder_id, nickname, amount, created, prev):
 def livro():
     genesis = sign(genesis_message(7, 1000, 100, STARTS))
     primeiro, primeiro_hash = elo(1, 3, 'red-pikachu', 1500, CREATED, genesis)
-    segundo, segundo_hash = elo(2, 4, 'cintia-garchomp', 2500, SECOND_AT, primeiro_hash)
+    segundo, segundo_hash = elo(2, 4, 'cintia-garchomp', 2500, SECOND_AT, primeiro_hash, EXTENDED)
     return [primeiro, segundo], segundo_hash
 
 
@@ -70,8 +73,11 @@ def test_mensagem_canonica_e_adulteracao():
 
 
 def test_mensagem_inclui_apelido_e_id():
-    mensagem = bid_message(7, 1, 3, 'red-pikachu', 1500, CREATED, 'abc')
-    assert mensagem == '7|1|3|red-pikachu|1500|2026-11-01T18:02:03.000004+00:00|abc'
+    mensagem = bid_message(7, 1, 3, 'red-pikachu', 1500, CREATED, 'abc', ENDS)
+    assert mensagem == (
+        '7|1|3|red-pikachu|1500|2026-11-01T18:02:03.000004+00:00|abc|'
+        '2026-11-01T19:00:00.000000+00:00'
+    )
 
     lances, ponta = livro()
     intact, head = assess_chain(bids = lances, **campos())
@@ -79,6 +85,21 @@ def test_mensagem_inclui_apelido_e_id():
     assert head == ponta
 
     lances[0]['nickname'] = 'blue-snorlax'
+    intact, head = assess_chain(bids = lances, **campos())
+    assert not intact
+    assert head == ponta
+
+
+def test_mensagem_inclui_ends_at_do_lance():
+    mensagem = bid_message(7, 1, 3, 'red-pikachu', 1500, CREATED, 'abc', EXTENDED)
+    assert mensagem.endswith('|2026-11-01T19:02:00.000000+00:00')
+
+    lances, ponta = livro()
+    intact, head = assess_chain(bids = lances, **campos())
+    assert intact
+    assert head == ponta
+
+    lances[1]['ends_at'] = ENDS
     intact, head = assess_chain(bids = lances, **campos())
     assert not intact
     assert head == ponta
@@ -145,7 +166,7 @@ def test_posicao_fora_da_sequencia_quebra():
     lances, ponta = livro()
     lances[1]['position'] = 3
     lances[1]['hash'] = sign(bid_message(
-        7, 3, 4, lances[1]['nickname'], 2500, SECOND_AT, lances[1]['prev_hash'],
+        7, 3, 4, lances[1]['nickname'], 2500, SECOND_AT, lances[1]['prev_hash'], EXTENDED,
     ))
 
     intact, head = assess_chain(bids = lances, **campos())
@@ -165,7 +186,7 @@ def test_recalcular_um_elo_nao_salva_o_seguinte():
     lances, ponta = livro()
     lances[0]['amount_cents'] = 1501
     lances[0]['hash'] = sign(bid_message(
-        7, 1, 3, lances[0]['nickname'], 1501, CREATED, lances[0]['prev_hash'],
+        7, 1, 3, lances[0]['nickname'], 1501, CREATED, lances[0]['prev_hash'], ENDS,
     ))
 
     intact, head = assess_chain(bids = lances, **campos())

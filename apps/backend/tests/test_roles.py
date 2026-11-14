@@ -254,10 +254,13 @@ async def test_leiloeiro_recebe_403_ao_dar_lance(monkeypatch):
 # Carteira
 
 def test_carteira_segue_no_dono_da_sessao():
-    for rota in (read_wallet, deposit):
-        guarda = dependencia(rota, 'user_id')
-        assert guarda is session_owner
-        assert guarda.__name__ == 'session_owner'
+    _require_auctioneer, require_bidder = guardas()
+
+    assert dependencia(read_wallet, 'user_id') is session_owner
+    assert dependencia(read_wallet, 'user_id').__name__ == 'session_owner'
+
+    assert dependencia(deposit, 'user_id') is require_bidder
+    assert dependencia(deposit, 'user_id').__name__ == 'require_bidder'
 
 
 async def test_saldo_nao_muda_por_papel(monkeypatch):

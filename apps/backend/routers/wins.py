@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from database.users import UsersORM
 from models.wins import WinsOut
-from routers import session_owner
+from routers import require_bidder
 from services.settlement import settle_due
 from services.wins import wins_for
 
@@ -11,7 +11,7 @@ router = APIRouter(tags = ['wins'])
 
 
 @router.get('/wins', response_model = WinsOut)
-async def read_wins(user_id: int = Depends(session_owner)):
+async def read_wins(user_id: int = Depends(require_bidder)):
     user = await UsersORM().find_one(id = user_id)
 
     if not user:

@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy import func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database import Session
+from database import Session, Transaction
 from database.bids import BidsORM
 from database.lots import LotsORM
 from database.users import UsersORM
@@ -61,22 +61,13 @@ async def committed_cents(user_id: int, moment: datetime | None = None, db: Asyn
 async def place_bid(lot_id: int, bidder_id: int, amount: int) -> dict:
     await settle_due()
 
-    async with Session() as db:
-        db.expire_on_flush = False
-        lot = (
-            await db.execute(
-                select(LotsORM).where(LotsORM.id == lot_id).with_for_update()
-            )
-        ).scalars().first()
+    async with Transaction() as tx:
+        lot = await tx.lock(LotsORM, lot_id)
 
         if lot is None:
             raise BidError(404, 'lote não encontrado')
 
-        user = (
-            await db.execute(
-                select(UsersORM).where(UsersORM.id == bidder_id).with_for_update()
-            )
-        ).scalars().first()
+        user = await tx.lock(UsersORM, bidder_id)
 
         if user is None:
             raise BidError(401, 'token inválido')
@@ -96,12 +87,12 @@ async def place_bid(lot_id: int, bidder_id: int, amount: int) -> dict:
         if status != 'live':
             raise BidError(409, 'o pregão já encerrou')
 
-        leader = await leading_bidder(lot.id, db)
+        leader = await leading_bidder(lot.id, tx.db)
 
         if leader == bidder_id:
             raise BidError(409, 'você já está ganhando')
 
-        _count, current = await bid_summary(lot.id, db)
+        _count, current = await bid_summary(lot.id, tx.db)
 
         if current is None:
             if amount < int(lot.minimum_bid):
@@ -109,23 +100,21 @@ async def place_bid(lot_id: int, bidder_id: int, amount: int) -> dict:
         elif amount < int(current) + int(lot.increment_cents):
             raise BidError(409, 'lance abaixo do mínimo')
 
-        available = int(user.balance_cents) - await committed_cents(bidder_id, moment, db = db)
+        available = int(user.balance_cents) - await committed_cents(bidder_id, moment, db = tx.db)
 
         if available < amount:
             raise BidError(409, 'saldo insuficiente')
 
         extend_ends_at(lot, moment)
-        nickname = await ensure_alias(db, int(lot.id), bidder_id)
+        lot_ends_at = aware(lot.ends_at)
+        nickname = await ensure_alias(tx.db, int(lot.id), bidder_id)
 
-        previous = (
-            await db.execute(
-                select(BidsORM.position, BidsORM.hash)
-                .where(BidsORM.lot_id == lot.id)
-                .order_by(BidsORM.position.desc(), BidsORM.id.desc())
-                .limit(1)
-                .with_for_update()
-            )
-        ).one_or_none()
+        previous = await tx.lock_one(
+            select(BidsORM.position, BidsORM.hash)
+            .where(BidsORM.lot_id == lot.id)
+            .order_by(BidsORM.position.desc(), BidsORM.id.desc())
+            .limit(1)
+        )
 
         if previous is None:
             position = 1
@@ -147,24 +136,26 @@ async def place_bid(lot_id: int, bidder_id: int, amount: int) -> dict:
             amount,
             moment,
             prev_hash,
+            lot_ends_at,
         ))
 
-        await db.execute(insert(BidsORM).values(
+        await tx.execute(insert(BidsORM).values(
             lot_id = lot.id,
             bidder_id = bidder_id,
             amount_cents = amount,
             created_at = moment,
+            ends_at = lot_ends_at,
             position = position,
             prev_hash = prev_hash,
             hash = digest,
             nickname = nickname,
         ))
 
-        payload = await public_lot(lot, moment, include_bids = True, db = db)
-        leader_id = await leading_bidder(lot.id, db)
+        payload = await public_lot(lot, moment, include_bids = True, db = tx.db)
+        leader_id = await leading_bidder(lot.id, tx.db)
         payload['leading'] = leader_id == bidder_id
         payload['alias'] = nickname
-        await db.commit()
+        await tx.commit()
 
     published = {
         key: value
