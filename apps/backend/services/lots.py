@@ -7,6 +7,7 @@ from database import Session
 from database.bids import BidsORM
 from database.lots import LotsORM
 from database.settlements import SettlementsORM
+from services.alias import nickname_of
 from services.chain import assess_chain
 
 RECENT_LIMIT = 20
@@ -127,7 +128,7 @@ def published_bid(row: dict) -> dict:
     return {
         'amount': int(row['amount_cents']),
         'created_at': aware(row['created_at']),
-        'bidder': int(row['bidder_id']),
+        'bidder': row['nickname'],
         'position': int(row['position']),
         'hash': row['hash'],
         'prev_hash': row['prev_hash'],
@@ -142,6 +143,7 @@ async def load_bids(lot_id: int, db: AsyncSession | None = None) -> list[dict]:
             BidsORM.amount_cents,
             BidsORM.created_at,
             BidsORM.bidder_id,
+            BidsORM.nickname,
             BidsORM.prev_hash,
             BidsORM.hash,
         )
@@ -162,10 +164,11 @@ async def load_bids(lot_id: int, db: AsyncSession | None = None) -> list[dict]:
             'amount_cents': int(amount_cents),
             'created_at': created_at,
             'bidder_id': int(bidder_id),
+            'nickname': nickname,
             'prev_hash': prev_hash,
             'hash': digest,
         }
-        for bid_id, position, amount_cents, created_at, bidder_id, prev_hash, digest in rows
+        for bid_id, position, amount_cents, created_at, bidder_id, nickname, prev_hash, digest in rows
     ]
 
 
@@ -211,7 +214,7 @@ async def result_for(status: str, bids: int, lot_id: int, db: AsyncSession | Non
 
     if settlement is not None and settlement['winner'] is not None:
         return {
-            'winner': settlement['winner'],
+            'winner': await nickname_of(lot_id, int(settlement['winner']), db),
             'amount': int(settlement['amount']),
         }
 

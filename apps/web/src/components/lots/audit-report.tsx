@@ -206,7 +206,7 @@ export function AuditReport({ lot }: { lot: ShowcaseLot }) {
                 rows.map((bid) => (
                   <TableRow key={bidKey(bid)} className="border-border">
                     <TableCell className="px-4">{formatLotDate(bid.createdAt) ?? "—"}</TableCell>
-                    <TableCell className="px-4">#{bid.bidderId}</TableCell>
+                    <TableCell className="px-4">{bid.bidder}</TableCell>
                     <TableCell className="px-4 text-primary">{formatLotMoney(bid.amount)}</TableCell>
                     <TableCell className="px-4" title={bid.hash ?? undefined}>
                       {bid.hash ? abbreviateHash(bid.hash) : "—"}

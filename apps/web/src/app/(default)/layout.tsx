@@ -65,7 +65,7 @@ export default async function DefaultLayout({ children }: { children: ReactNode 
                     </div>
                   ))}
                 </dl>
-                <DepositDialog />
+                {role !== "auctioneer" ? <DepositDialog /> : null}
                 <ThemeToggle />
                 <AccountMenu role={role} />
               </>

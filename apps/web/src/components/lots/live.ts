@@ -1,10 +1,11 @@
-import { parseShowcaseLot, type ShowcaseLot } from "@/components/lots/model"
+import { parseNickname, parseShowcaseLot, type ShowcaseLot } from "@/components/lots/model"
 
 export type LiveLotEvent =
   | {
       type: "lot"
       lot: ShowcaseLot
       leading: boolean
+      alias: string | null
     }
   | {
       type: "cancelled"
@@ -44,5 +45,10 @@ export function parseLiveLotEvent(raw: string): LiveLotEvent | null {
   const lot = parseShowcaseLot(payload.lot)
   if (!lot) return null
 
-  return { type: "lot", lot, leading: payload.leading === true }
+  return {
+    type: "lot",
+    lot,
+    leading: payload.leading === true,
+    alias: parseNickname(payload.alias),
+  }
 }

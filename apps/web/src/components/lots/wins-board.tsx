@@ -85,7 +85,7 @@ function WonCard({ lot }: { lot: WinLot }) {
               <span className="font-mono text-sm text-foreground">{settledAt ?? "—"}</span>
             </p>
           </div>
-          <p className="text-sm text-foreground">Licitante #{lot.winner}</p>
+          <p className="text-sm text-foreground">{lot.winner}</p>
           <Button variant="outline" size="sm" className="w-full rounded-[4px]" asChild>
             <Link href={`/lots/${lot.id}/receipt`}>
               <Receipt data-icon="inline-start" aria-hidden />

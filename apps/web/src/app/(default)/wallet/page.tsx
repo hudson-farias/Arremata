@@ -69,9 +69,11 @@ export default async function WalletPage() {
     )
   }
 
+  const role = await API.sessionRole()
+
   return (
     <WalletFrame>
-      <WalletBoard wallet={wallet} />
+      <WalletBoard wallet={wallet} role={role} />
     </WalletFrame>
   )
 }

@@ -30,12 +30,13 @@ def bid_message(
     lot_id: int,
     position: int,
     bidder_id: int,
+    nickname: str,
     amount_cents: int,
     created_at: datetime,
     prev_hash: str,
 ) -> str:
     return (
-        f'{int(lot_id)}|{int(position)}|{int(bidder_id)}|{int(amount_cents)}|'
+        f'{int(lot_id)}|{int(position)}|{int(bidder_id)}|{nickname}|{int(amount_cents)}|'
         f'{chain_timestamp(created_at)}|{prev_hash}'
     )
 
@@ -101,10 +102,12 @@ def assess_chain(
         if not same_digest(stored_prev, previous):
             intact = False
 
+        nickname = bid['nickname'] if isinstance(bid.get('nickname'), str) else ''
         expected = sign(bid_message(
             lot_id,
             int(bid['position']),
             int(bid['bidder_id']),
+            nickname,
             int(bid['amount_cents']),
             bid['created_at'],
             stored_prev,

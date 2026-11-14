@@ -1,6 +1,20 @@
 from datetime import datetime, timezone
+from re import compile as compile_pattern
 
 from pydantic import BaseModel, field_validator, model_validator
+
+
+_NICKNAME = compile_pattern(r'^[a-z]+-[a-z]+$')
+
+
+def public_nickname(value, message: str) -> str:
+    if isinstance(value, str):
+        text = value.strip()
+
+        if _NICKNAME.fullmatch(text):
+            return text
+
+    raise ValueError(message)
 
 
 MAX_BID_CENTS = 999999999999
@@ -152,8 +166,16 @@ class LotUpdate(BaseModel):
 
 
 class LotResult(BaseModel):
-    winner: int | None = None
+    winner: str | None = None
     amount: int | None = None
+
+    @field_validator('winner', mode = 'before')
+    @classmethod
+    def winner_name(cls, value) -> str | None:
+        if value is None:
+            return None
+
+        return public_nickname(value, 'vencedor inválido')
 
     @field_validator('amount', mode = 'before')
     @classmethod
@@ -189,7 +211,7 @@ class AuctioneerLot(BaseModel):
 class PublicBid(BaseModel):
     amount: int
     created_at: datetime
-    bidder: int
+    bidder: str
     position: int
     hash: str
     prev_hash: str
@@ -209,11 +231,8 @@ class PublicBid(BaseModel):
 
     @field_validator('bidder', mode = 'before')
     @classmethod
-    def bidder_id(cls, value) -> int:
-        if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
-            raise ValueError('licitante inválido')
-
-        return value
+    def bidder_name(cls, value) -> str:
+        return public_nickname(value, 'licitante inválido')
 
     @field_validator('created_at')
     @classmethod
@@ -277,6 +296,24 @@ class BidCreate(BaseModel):
 
 class PlacedBid(PublicLot):
     leading: bool
+    alias: str
+
+    @field_validator('alias', mode = 'before')
+    @classmethod
+    def placed_alias(cls, value) -> str:
+        return public_nickname(value, 'apelido inválido')
+
+
+class LotAlias(BaseModel):
+    alias: str | None = None
+
+    @field_validator('alias', mode = 'before')
+    @classmethod
+    def public_alias(cls, value) -> str | None:
+        if value is None:
+            return None
+
+        return public_nickname(value, 'apelido inválido')
 
 
 class LotReceipt(BaseModel):
@@ -284,7 +321,7 @@ class LotReceipt(BaseModel):
     title: str
     image_url: str
     amount: int
-    winner: int | None = None
+    winner: str | None = None
     settled_at: datetime
     chain_head: str
 
@@ -295,14 +332,11 @@ class LotReceipt(BaseModel):
 
     @field_validator('winner', mode = 'before')
     @classmethod
-    def winner_id(cls, value) -> int | None:
+    def winner_name(cls, value) -> str | None:
         if value is None:
             return None
 
-        if isinstance(value, bool) or not isinstance(value, int):
-            raise ValueError('vencedor inválido')
-
-        return value
+        return public_nickname(value, 'vencedor inválido')
 
     @field_validator('settled_at')
     @classmethod

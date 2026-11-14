@@ -93,6 +93,7 @@ def test_lance_publicado_esconde_o_id_interno():
         'amount_cents': 1500,
         'created_at': datetime(2026, 11, 1, 18, 2),
         'bidder_id': 3,
+        'nickname': 'red-pikachu',
         'position': 1,
         'hash': 'ab',
         'prev_hash': 'cd',
@@ -101,8 +102,9 @@ def test_lance_publicado_esconde_o_id_interno():
     assert linha == {
         'amount': 1500,
         'created_at': datetime(2026, 11, 1, 18, 2, tzinfo = timezone.utc),
-        'bidder': 3,
+        'bidder': 'red-pikachu',
         'position': 1,
         'hash': 'ab',
         'prev_hash': 'cd',
     }
+    assert 3 not in linha.values()

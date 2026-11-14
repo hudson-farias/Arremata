@@ -2,7 +2,7 @@ import nookies from 'nookies'
 
 type SearchParams = Record<string, string | string[] | undefined>
 
-const apiBaseURL = '/backend'
+const apiBaseURL = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '')
 
 class ApiClient {
   private headers(method: string, isForm: boolean = false): Record<string, string> {

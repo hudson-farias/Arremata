@@ -4,7 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from database.users import MAX_BALANCE_CENTS
-from models.lot import MAX_BID_CENTS, LotCreate, LotUpdate, BidCreate
+from models.lot import MAX_BID_CENTS, BidCreate, LotCreate, LotResult, LotUpdate, PublicBid
 from models.user import Credentials
 from models.wallet import DepositIn
 
@@ -79,6 +79,31 @@ def test_lance_e_deposito_rejeitam_valor_invalido():
     rejeita(DepositIn, 'valor deve ser maior que zero', amount = -1)
     rejeita(DepositIn, 'valor inválido', amount = True)
     rejeita(DepositIn, 'valor inválido', amount = MAX_BALANCE_CENTS + 1)
+
+
+def test_lance_publico_usa_apelido():
+    lance = PublicBid(
+        amount = 1500,
+        created_at = INICIO,
+        bidder = 'red-pikachu',
+        position = 1,
+        hash = 'ab',
+        prev_hash = 'cd',
+    )
+    assert lance.bidder == 'red-pikachu'
+    rejeita(
+        PublicBid,
+        'licitante inválido',
+        amount = 1500,
+        created_at = INICIO,
+        bidder = 3,
+        position = 1,
+        hash = 'ab',
+        prev_hash = 'cd',
+    )
+    assert LotResult(winner = 'cintia-garchomp', amount = 1500).winner == 'cintia-garchomp'
+    assert LotResult(winner = None, amount = None).winner is None
+    rejeita(LotResult, 'vencedor inválido', winner = 4, amount = 1500)
 
 
 def test_credenciais_exigem_texto():

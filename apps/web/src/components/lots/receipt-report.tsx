@@ -15,7 +15,7 @@ export type LotReceipt = {
   title: string
   imageUrl: string | null
   amount: number
-  winner: number | null
+  winner: string | null
   settledAt: string
   chainHead: string | null
 }
@@ -64,7 +64,7 @@ export function ReceiptReport({ receipt }: { receipt: LotReceipt }) {
               </div>
               <div className="flex flex-col gap-2">
                 <dt className={labelClass}>Licitante</dt>
-                <dd className="text-base text-foreground">{won ? `#${receipt.winner}` : "Nenhum"}</dd>
+                <dd className="text-base text-foreground">{won ? receipt.winner : "Nenhum"}</dd>
               </div>
               <div className="flex flex-col gap-2">
                 <dt className={labelClass}>Data da liquidação</dt>

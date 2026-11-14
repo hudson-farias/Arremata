@@ -13,20 +13,22 @@ import {
   bidFloorCents,
   formatLotMoney,
   mergeLiveLot,
-  topBid,
   userIsLeading,
   type ShowcaseLot,
 } from "@/components/lots/model"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { reaisToCents } from "@/lib/money"
 
 const maxCents = 999999999999
-const reconnectDelayMs = 1000
+const reconnectMinMs = 1000
+const reconnectMaxMs = 8000
 
 type PlaceBidResult = {
   status: number
   message?: string
   lot?: ShowcaseLot
   leading?: boolean
+  alias?: string | null
 }
 
 type Seat = "winning" | "outbid" | null
@@ -75,16 +77,16 @@ function bidSignature(lot: ShowcaseLot): string {
   return `${lot.id}:${lot.currentBid ?? ""}:${lot.bidCount}:${lot.increment ?? ""}:${lot.endsAt ?? ""}`
 }
 
-function initialSeat(lot: ShowcaseLot, viewerId: number | null): Seat {
-  if (viewerId == null) return null
-  if (userIsLeading(lot, viewerId)) return "winning"
-  if (lot.bids.some((bid) => bid.bidderId === viewerId)) return "outbid"
+function initialSeat(lot: ShowcaseLot, alias: string | null): Seat {
+  if (!alias) return null
+  if (userIsLeading(lot, alias)) return "winning"
+  if (lot.bids.some((bid) => bid.bidder === alias)) return "outbid"
   return null
 }
 
-function nextSeat(lot: ShowcaseLot, viewerId: number | null, leading: boolean, previous: Seat): Seat {
+function nextSeat(lot: ShowcaseLot, alias: string | null, leading: boolean, previous: Seat): Seat {
   if (leading) return "winning"
-  if (viewerId != null && lot.bids.some((bid) => bid.bidderId === viewerId)) return "outbid"
+  if (alias && lot.bids.some((bid) => bid.bidder === alias)) return "outbid"
   if (previous === "winning" || previous === "outbid") return "outbid"
   return null
 }
@@ -92,14 +94,14 @@ function nextSeat(lot: ShowcaseLot, viewerId: number | null, leading: boolean, p
 export default function LotPageClient({
   lot: initialLot,
   condition,
-  viewerId: initialViewerId,
+  alias: initialAlias,
   placeBid,
   cancelled: initiallyCancelled = false,
   canBid,
 }: {
   lot: ShowcaseLot
   condition: string | null
-  viewerId: number | null
+  alias: string | null
   placeBid: (id: string, amount: number) => Promise<PlaceBidResult>
   cancelled?: boolean
   canBid: boolean
@@ -108,9 +110,9 @@ export default function LotPageClient({
   const signature = bidSignature(initialLot)
   const [seen, setSeen] = useState(signature)
   const [lot, setLot] = useState(initialLot)
-  const [viewerId, setViewerId] = useState(initialViewerId)
-  const [leading, setLeading] = useState(() => userIsLeading(initialLot, initialViewerId))
-  const [position, setPosition] = useState<Seat>(() => initialSeat(initialLot, initialViewerId))
+  const [alias, setAlias] = useState(initialAlias)
+  const [leading, setLeading] = useState(() => userIsLeading(initialLot, initialAlias))
+  const [position, setPosition] = useState<Seat>(() => initialSeat(initialLot, initialAlias))
   const [amount, setAmount] = useState(() => reaisInput(bidFloorCents(initialLot)))
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
@@ -119,8 +121,9 @@ export default function LotPageClient({
   const [extended, setExtended] = useState(false)
   const [cancelled, setCancelled] = useState(initiallyCancelled)
   const [refunded, setRefunded] = useState(false)
+  const [liveDown, setLiveDown] = useState(false)
   const lotRef = useRef(lot)
-  const viewerRef = useRef(viewerId)
+  const aliasRef = useRef(alias)
   const leadingRef = useRef(leading)
   const positionRef = useRef(position)
   const cancelledRef = useRef(cancelled)
@@ -128,30 +131,31 @@ export default function LotPageClient({
   const applyCancelRef = useRef<(wasLeading: boolean) => void>(() => {})
 
   lotRef.current = lot
-  viewerRef.current = viewerId
+  aliasRef.current = alias
   leadingRef.current = leading
   positionRef.current = position
   cancelledRef.current = cancelled
 
-  if (initialViewerId != null && viewerId !== initialViewerId) {
-    viewerRef.current = initialViewerId
-    setViewerId(initialViewerId)
+  if (initialAlias != null && alias !== initialAlias) {
+    aliasRef.current = initialAlias
+    setAlias(initialAlias)
   }
 
   if (lot.id !== initialLot.id) {
-    const nextLeading = userIsLeading(initialLot, initialViewerId)
+    const nextLeading = userIsLeading(initialLot, initialAlias)
     lotRef.current = initialLot
-    viewerRef.current = initialViewerId
+    aliasRef.current = initialAlias
     leadingRef.current = nextLeading
-    positionRef.current = initialSeat(initialLot, initialViewerId)
+    positionRef.current = initialSeat(initialLot, initialAlias)
     cancelledRef.current = initiallyCancelled
     setSeen(signature)
     setLot(initialLot)
-    setViewerId(initialViewerId)
+    setAlias(initialAlias)
     setLeading(nextLeading)
     setPosition(positionRef.current)
     setCancelled(initiallyCancelled)
     setRefunded(false)
+    setLiveDown(false)
     setAmount(reaisInput(bidFloorCents(initialLot)))
     setError(null)
     setVisitEnd(initialLot.endsAt)
@@ -182,22 +186,24 @@ export default function LotPageClient({
     const merged = mergeLiveLot(current, event.lot)
     const previousFloor = bidFloorCents(current)
     const nextFloor = bidFloorCents(merged)
-    const viewer = viewerRef.current
+    const viewer = aliasRef.current
     const wasLeading = leadingRef.current
-    const seat = nextSeat(merged, viewer, event.leading, positionRef.current)
+    // O socket sem cookie (host diferente da página) chega anônimo, com leading sempre false.
+    const isLeading = event.leading || userIsLeading(merged, viewer)
+    const seat = nextSeat(merged, viewer, isLeading, positionRef.current)
 
     lotRef.current = merged
-    leadingRef.current = event.leading
+    leadingRef.current = isLeading
     positionRef.current = seat
     setLot(merged)
-    setLeading(event.leading)
+    setLeading(isLeading)
     setPosition(seat)
 
     if (previousFloor != null && nextFloor != null && nextFloor > previousFloor) {
       setAmount((value) => (value === reaisInput(previousFloor) ? reaisInput(nextFloor) : value))
     }
 
-    if (viewer != null && wasLeading !== event.leading) {
+    if (viewer != null && wasLeading !== isLeading) {
       router.refresh()
     }
   }
@@ -222,13 +228,28 @@ export default function LotPageClient({
     let stopped = false
     let socket: WebSocket | null = null
     let retry: number | null = null
+    let delay = reconnectMinMs
 
     const connect = () => {
       if (stopped || cancelledRef.current) return
 
       const next = SOCKET.connect(`/lots/${initialLot.id}/live`)
-      if (!next) return
+      if (!next) {
+        setLiveDown(true)
+        return
+      }
       socket = next
+
+      next.onopen = () => {
+        if (stopped || socket !== next) return
+        delay = reconnectMinMs
+        setLiveDown(false)
+      }
+
+      next.onerror = () => {
+        if (stopped || socket !== next || cancelledRef.current) return
+        setLiveDown(true)
+      }
 
       next.onmessage = (message) => {
         if (stopped || socket !== next || cancelledRef.current || typeof message.data !== "string") return
@@ -238,11 +259,15 @@ export default function LotPageClient({
 
         if (event.type === "cancelled") {
           if (event.lotId !== initialLot.id) return
-          applyCancelRef.current(event.leading)
+          applyCancelRef.current(event.leading || leadingRef.current)
           return
         }
 
         if (event.lot.id !== initialLot.id) return
+        if (event.alias) {
+          aliasRef.current = event.alias
+          setAlias(event.alias)
+        }
         applyRef.current(event)
       }
 
@@ -254,7 +279,10 @@ export default function LotPageClient({
           return
         }
 
-        retry = window.setTimeout(connect, reconnectDelayMs)
+        setLiveDown(true)
+        const wait = delay
+        delay = Math.min(delay * 2, reconnectMaxMs)
+        retry = window.setTimeout(connect, wait)
       }
     }
 
@@ -282,7 +310,7 @@ export default function LotPageClient({
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!open || pending || cancelled) return
+    if (!open || pending || cancelled || position === "winning") return
 
     const reais = parseReais(amount)
     const cents = reais == null ? null : reaisToCents(reais)
@@ -326,12 +354,9 @@ export default function LotPageClient({
         return
       }
 
-      if (result.leading) {
-        const winner = topBid(result.lot)
-        if (winner) {
-          viewerRef.current = winner.bidderId
-          setViewerId(winner.bidderId)
-        }
+      if (result.alias) {
+        aliasRef.current = result.alias
+        setAlias(result.alias)
       }
 
       applyRef.current({ lot: result.lot, leading: result.leading === true })
@@ -356,7 +381,13 @@ export default function LotPageClient({
           <LotShowcase lot={lot} cancelled={cancelled} />
           <ConditionReport text={condition} />
         </div>
-        <div className="lg:col-span-5">
+        <div className="flex flex-col gap-4 lg:col-span-5">
+          {liveDown && !cancelled ? (
+            <Alert className="rounded-[4px]">
+              <AlertTitle>A atualização ao vivo caiu</AlertTitle>
+              <AlertDescription>A página está tentando de novo.</AlertDescription>
+            </Alert>
+          ) : null}
           <BidConsole
             lot={lot}
             remaining={remaining}
@@ -365,7 +396,7 @@ export default function LotPageClient({
             cancelled={cancelled}
             refunded={refunded}
             position={position}
-            viewerId={viewerId}
+            alias={alias}
             amount={amount}
             error={error}
             pending={pending}

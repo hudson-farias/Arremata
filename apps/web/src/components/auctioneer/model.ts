@@ -1,3 +1,4 @@
+import { parseNickname } from "@/components/lots/model"
 import { formatCents, parseCents } from "@/lib/money"
 
 export type CatalogCard = {
@@ -13,7 +14,7 @@ export type CatalogCard = {
 export type LotStatus = "scheduled" | "live" | "closed" | "cancelled"
 
 export type LotResult = {
-  winner: number | null
+  winner: string | null
   amount: number | null
 }
 
@@ -137,15 +138,6 @@ function statusOf(value: unknown): LotStatus | null {
   return lotStatuses.find((status) => status === raw) ?? null
 }
 
-function publicId(value: unknown): number | null {
-  if (typeof value === "number" && Number.isSafeInteger(value) && value > 0) return value
-  if (typeof value === "string" && /^[1-9]\d*$/.test(value.trim())) {
-    const parsed = Number(value.trim())
-    if (Number.isSafeInteger(parsed)) return parsed
-  }
-  return null
-}
-
 function readDate(value: unknown): string | null {
   if (typeof value !== "string") return null
   const raw = value.trim()
@@ -156,8 +148,11 @@ function readDate(value: unknown): string | null {
 function parseResult(value: unknown): LotResult | null {
   if (!isRecord(value)) return null
 
+  const winner = value.winner == null ? null : parseNickname(value.winner)
+  if (value.winner != null && !winner) return null
+
   return {
-    winner: publicId(value.winner),
+    winner,
     amount: money(value.amount),
   }
 }

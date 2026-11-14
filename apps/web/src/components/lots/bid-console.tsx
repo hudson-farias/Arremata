@@ -99,7 +99,7 @@ export function BidConsole({
   cancelled,
   refunded,
   position,
-  viewerId,
+  alias,
   amount,
   error,
   pending,
@@ -114,7 +114,7 @@ export function BidConsole({
   cancelled: boolean
   refunded: boolean
   position: "winning" | "outbid" | null
-  viewerId: number | null
+  alias: string | null
   amount: string
   error: string | null
   pending: boolean
@@ -124,8 +124,10 @@ export function BidConsole({
 }) {
   const hasCurrent = lot.currentBid != null
   const shown = hasCurrent ? lot.currentBid : lot.minimumBid
+  const winning = position === "winning"
   const hint = open ? bidFloorLabel(lot) : null
   const describedBy = [error ? "lot-bid-error" : null, hint || !open ? "lot-bid-hint" : null].filter(Boolean).join(" ") || undefined
+  const blocked = !open || pending || winning
 
   return (
     <Card>
@@ -146,6 +148,9 @@ export function BidConsole({
           ) : null}
           {!cancelled && position === "winning" ? <p className="text-sm font-medium text-primary">Ganhando</p> : null}
           {!cancelled && position === "outbid" ? <p className="text-sm font-medium text-muted-foreground">Superado</p> : null}
+          {alias != null ? (
+            <p className="text-sm text-muted-foreground">Neste lote você é {alias}</p>
+          ) : null}
         </div>
 
         {canBid ? (
@@ -164,7 +169,7 @@ export function BidConsole({
                   min="0.01"
                   step="0.01"
                   value={amount}
-                  disabled={!open || pending}
+                  disabled={blocked}
                   aria-invalid={error ? true : undefined}
                   aria-describedby={describedBy}
                   onChange={(event) => onAmountChange(event.target.value)}
@@ -174,10 +179,14 @@ export function BidConsole({
               {error ? <FieldError id="lot-bid-error">{error}</FieldError> : null}
             </Field>
 
-            <Button type="submit" className="h-11 w-full" disabled={!open || pending}>
+            <Button type="submit" className="h-11 w-full" disabled={blocked}>
               {pending ? <Spinner data-icon="inline-start" /> : <Gavel data-icon="inline-start" />}
               Dar lance
             </Button>
+
+            {winning ? (
+              <p className="text-center text-sm text-muted-foreground">Você já está ganhando.</p>
+            ) : null}
 
             {open ? null : (
               <p id="lot-bid-hint" className="text-center text-sm text-muted-foreground">
@@ -199,7 +208,7 @@ export function BidConsole({
                   <span className="font-mono text-foreground">{formatLotMoney(bid.amount)}</span>
                   <span className="text-muted-foreground">{formatLotDate(bid.createdAt) ?? "—"}</span>
                   <span className="text-right text-foreground">
-                    {viewerId != null && bid.bidderId === viewerId ? "Você" : `Licitante #${bid.bidderId}`}
+                    {alias != null && bid.bidder === alias ? `${alias} (Você)` : bid.bidder}
                   </span>
                 </li>
               ))}

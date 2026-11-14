@@ -5,6 +5,7 @@ from database import Session
 from database.bids import BidsORM
 from database.lots import LotsORM
 from database.settlements import SettlementsORM
+from services.alias import nicknames_for_user
 from services.lots import attributes_of, aware, now_utc, status_of
 
 
@@ -68,6 +69,7 @@ async def _collect(db: AsyncSession, user_id: int) -> dict:
     summaries = await _summaries(db, lot_ids)
     leaders = await _leaders(db, lot_ids)
     settlements = await _settlements(db, lot_ids)
+    aliases = await nicknames_for_user(db, user_id, lot_ids)
     won = []
     bids = []
 
@@ -84,7 +86,7 @@ async def _collect(db: AsyncSession, user_id: int) -> dict:
                 **card,
                 'amount': _won_amount(settlements.get(lot_id), current, user_amount),
                 'settled_at': _settled_at(lot, settlements.get(lot_id)),
-                'winner': user_id,
+                'winner': aliases[lot_id],
             })
             continue
 

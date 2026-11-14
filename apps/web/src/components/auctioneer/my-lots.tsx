@@ -120,7 +120,7 @@ function ClosedOutcome({ lot }: { lot: AuctionLot }) {
     <span className="flex flex-col items-end gap-0.5">
       <span className="text-xs tracking-[0.14em] text-muted-foreground uppercase">Arrematado</span>
       <span className="font-mono text-sm text-primary">{formatMoney(lot.result?.amount ?? null)}</span>
-      <span className="text-xs text-foreground">Licitante #{winner}</span>
+      <span className="text-xs text-foreground">{winner}</span>
     </span>
   )
 }

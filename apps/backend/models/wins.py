@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, field_validator
 
-from models.lot import integer_cents
+from models.lot import integer_cents, public_nickname
 
 
 class WonLot(BaseModel):
@@ -15,7 +15,7 @@ class WonLot(BaseModel):
     number: str | None = None
     amount: int
     settled_at: datetime
-    winner: int
+    winner: str
 
     @field_validator('amount', mode = 'before')
     @classmethod
@@ -24,11 +24,8 @@ class WonLot(BaseModel):
 
     @field_validator('winner', mode = 'before')
     @classmethod
-    def winner_id(cls, value) -> int:
-        if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
-            raise ValueError('vencedor inválido')
-
-        return value
+    def winner_name(cls, value) -> str:
+        return public_nickname(value, 'vencedor inválido')
 
     @field_validator('settled_at')
     @classmethod

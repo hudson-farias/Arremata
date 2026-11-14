@@ -7,7 +7,7 @@ export type LotsPayload = { status: number; lots: ShowcaseLot[] }
 export type LotBid = {
   amount: number
   createdAt: string
-  bidderId: number
+  bidder: string
   position: number | null
   hash: string | null
   prevHash: string | null
@@ -94,16 +94,14 @@ function statusOf(value: unknown): ShowcaseStatus | null {
   return statuses.find((status) => status === raw) ?? null
 }
 
-function idOf(value: unknown): number | null {
-  if (typeof value === "number" && Number.isSafeInteger(value) && value > 0) return value
-  if (typeof value === "string" && /^[1-9]\d*$/.test(value.trim())) {
-    const parsed = Number(value.trim())
-    if (Number.isSafeInteger(parsed)) return parsed
-  }
-  return null
-}
-
+const nicknamePattern = /^[a-z]+-[a-z]+$/
 const chainHashPattern = /^[0-9a-f]{64}$/i
+
+export function parseNickname(value: unknown): string | null {
+  if (typeof value !== "string") return null
+  const raw = value.trim()
+  return nicknamePattern.test(raw) ? raw : null
+}
 
 export function parseChainHash(value: unknown): string | null {
   if (typeof value !== "string") return null
@@ -129,13 +127,13 @@ function parseBid(value: unknown): LotBid | null {
 
   const amount = parseCents(value.amount)
   const createdAt = readDate(value.created_at ?? value.createdAt)
-  const bidderId = idOf(value.bidder ?? value.bidder_id ?? value.bidderId)
-  if (amount == null || !createdAt || bidderId == null) return null
+  const bidder = parseNickname(value.bidder)
+  if (amount == null || !createdAt || !bidder) return null
 
   return {
     amount,
     createdAt,
-    bidderId,
+    bidder,
     position: bidPosition(value.position),
     hash: parseChainHash(value.hash),
     prevHash: parseChainHash(value.prev_hash ?? value.prevHash),
@@ -235,7 +233,7 @@ export function bidFloorLabel(lot: ShowcaseLot): string | null {
 export function bidKey(bid: LotBid): string {
   const time = Date.parse(bid.createdAt)
   const stamp = Number.isNaN(time) ? bid.createdAt : String(time)
-  return `${bid.amount}:${stamp}:${bid.bidderId}`
+  return `${bid.amount}:${stamp}:${bid.bidder}`
 }
 
 export function abbreviateHash(hash: string): string {
@@ -302,9 +300,9 @@ export function topBid(lot: ShowcaseLot): LotBid | null {
   }, null)
 }
 
-export function userIsLeading(lot: ShowcaseLot, viewerId: number | null): boolean {
-  if (viewerId == null) return false
-  return topBid(lot)?.bidderId === viewerId
+export function userIsLeading(lot: ShowcaseLot, alias: string | null): boolean {
+  if (!alias) return false
+  return topBid(lot)?.bidder === alias
 }
 
 export function collectorLine(lot: Pick<ShowcaseLot, "setName" | "rarity" | "number">): string {

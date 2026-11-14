@@ -14,7 +14,14 @@ from alembic import op
 from sqlalchemy import Column, Integer, String, text
 
 from env import AUDIT_SECRET
-from services.chain import bid_message, genesis_message, sign
+from services.chain import chain_timestamp, genesis_message, sign
+
+
+def _legacy_bid_message(lot_id, position, bidder_id, amount_cents, created_at, prev_hash) -> str:
+    return (
+        f'{int(lot_id)}|{int(position)}|{int(bidder_id)}|{int(amount_cents)}|'
+        f'{chain_timestamp(created_at)}|{prev_hash}'
+    )
 
 
 revision: str = 'e7b3d1c94a26'
@@ -101,7 +108,7 @@ def _backfill(bind) -> None:
         else:
             position += 1
 
-        digest = sign(bid_message(
+        digest = sign(_legacy_bid_message(
             lot_id,
             position,
             int(row['bidder_id']),

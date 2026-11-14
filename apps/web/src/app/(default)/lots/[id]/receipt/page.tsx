@@ -5,7 +5,7 @@ import { notFound } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 
 import { API } from "@/api/server"
-import { parseChainHash } from "@/components/lots/model"
+import { parseChainHash, parseNickname } from "@/components/lots/model"
 import { ReceiptReport, type LotReceipt } from "@/components/lots/receipt-report"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { parseCents } from "@/lib/money"
@@ -48,10 +48,9 @@ function readDate(value: unknown): string | null {
   return raw
 }
 
-function parseWinner(value: unknown): number | null | undefined {
+function parseWinner(value: unknown): string | null | undefined {
   if (value === null) return null
-  const id = idOf(value)
-  return id == null ? undefined : id
+  return parseNickname(value) ?? undefined
 }
 
 function parseReceipt(payload: unknown): LotReceipt | null {

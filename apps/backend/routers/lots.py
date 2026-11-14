@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Path, Query, WebSocket, WebSocketDisconnect
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from database.lots import LotsORM
 from database.users import UsersORM
-from models.lot import BidCreate, LotReceipt, PlacedBid, PublicLot
+from models.lot import BidCreate, LotAlias, LotReceipt, PlacedBid, PublicLot
 from routers import require_bidder
+from services.alias import nickname_of
 from services.bids import BidError, place_bid
 from services.live import encode_lot, lot_rooms
 from services.lots import RECENT_LIMIT, leading_bidder, now_utc, public_lot, status_of, summaries_for
@@ -11,6 +13,7 @@ from services.settlement import settle_due, settlement_for
 
 
 router = APIRouter(tags = ['lots'])
+_bearer = HTTPBearer(auto_error = False)
 
 PUBLIC_ORDER = {
     'live': ('ends_at', False),
@@ -68,17 +71,35 @@ async def read_lot_receipt(lot_id: int = Path(gt = 0)):
     if settlement is None:
         raise HTTPException(status_code = 404, detail = 'lote não encontrado')
 
-    winner = settlement['winner']
+    winner_id = settlement['winner']
+    winner = None if winner_id is None else await nickname_of(int(lot.id), int(winner_id))
 
     return {
         'lot_id': int(lot.id),
         'title': lot.title,
         'image_url': lot.image_url,
         'amount': int(settlement['amount']),
-        'winner': None if winner is None else int(winner),
+        'winner': winner,
         'settled_at': settlement['settled_at'],
         'chain_head': settlement['chain_head'],
     }
+
+
+@router.get('/lots/{lot_id}/alias', response_model = LotAlias)
+async def read_lot_alias(
+    lot_id: int = Path(gt = 0),
+    auth: HTTPAuthorizationCredentials | None = Depends(_bearer),
+    cookie_token: str | None = Cookie(default = None, alias = 'TOKEN'),
+):
+    user_id = viewer_from_token(
+        auth.credentials if auth and auth.credentials else None,
+        cookie_token,
+    )
+
+    if user_id is None:
+        return {'alias': None}
+
+    return {'alias': await nickname_of(lot_id, user_id)}
 
 
 def viewer_from_token(*tokens: str | None) -> int | None:
@@ -103,7 +124,6 @@ def viewer_from_token(*tokens: str | None) -> int | None:
 async def live_lot(
     websocket: WebSocket,
     lot_id: int = Path(gt = 0),
-    token: str | None = Query(default = None),
     cookie_token: str | None = Cookie(default = None, alias = 'TOKEN'),
 ):
     lot = await LotsORM().find_one(id = lot_id)
@@ -115,8 +135,6 @@ async def live_lot(
         return
 
     user_id = viewer_from_token(
-        token,
-        websocket.query_params.get('token'),
         cookie_token,
         websocket.cookies.get('TOKEN'),
     )
@@ -125,10 +143,12 @@ async def live_lot(
     try:
         public = encode_lot(await public_lot(lot, include_bids = True))
         leader_id = await leading_bidder(lot.id)
+        alias = None if user_id is None else await nickname_of(int(lot.id), user_id)
         await websocket.send_json({
             'type': 'lot',
             'lot': public,
             'leading': user_id is not None and leader_id == user_id,
+            'alias': alias,
         })
 
         while True:

@@ -7,6 +7,7 @@ from database import Session
 from database.bids import BidsORM
 from database.lots import LotsORM
 from database.users import UsersORM
+from services.alias import ensure_alias
 from services.chain import bid_message, genesis_message, sign
 from services.live import publish_lot
 from services.lots import aware, bid_summary, extend_ends_at, leading_bidder, now_utc, public_lot, status_of
@@ -114,6 +115,7 @@ async def place_bid(lot_id: int, bidder_id: int, amount: int) -> dict:
             raise BidError(409, 'saldo insuficiente')
 
         extend_ends_at(lot, moment)
+        nickname = await ensure_alias(db, int(lot.id), bidder_id)
 
         previous = (
             await db.execute(
@@ -141,6 +143,7 @@ async def place_bid(lot_id: int, bidder_id: int, amount: int) -> dict:
             int(lot.id),
             position,
             bidder_id,
+            nickname,
             amount,
             moment,
             prev_hash,
@@ -154,13 +157,19 @@ async def place_bid(lot_id: int, bidder_id: int, amount: int) -> dict:
             position = position,
             prev_hash = prev_hash,
             hash = digest,
+            nickname = nickname,
         ))
 
         payload = await public_lot(lot, moment, include_bids = True, db = db)
         leader_id = await leading_bidder(lot.id, db)
         payload['leading'] = leader_id == bidder_id
+        payload['alias'] = nickname
         await db.commit()
 
-    published = {key: value for key, value in payload.items() if key != 'leading'}
+    published = {
+        key: value
+        for key, value in payload.items()
+        if key not in ('leading', 'alias')
+    }
     await publish_lot(lot_id, published, leader_id)
     return payload

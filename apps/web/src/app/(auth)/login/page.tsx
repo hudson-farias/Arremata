@@ -40,7 +40,7 @@ async function login(
       maxAge: 60 * 60 * 24 * 30,
       path: "/",
       sameSite: "lax",
-      httpOnly: false,
+      httpOnly: true,
     })
   }
 

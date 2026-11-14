@@ -6,7 +6,7 @@ import { notFound } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 
 import { API } from "@/api/server"
-import { parseShowcaseLot, type ShowcaseLot } from "@/components/lots/model"
+import { parseNickname, parseShowcaseLot, type ShowcaseLot } from "@/components/lots/model"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { parseCents, reaisToCents } from "@/lib/money"
 
@@ -84,26 +84,25 @@ function detailMessage(payload: unknown): string {
   return payload.detail.trim()
 }
 
-async function sessionUserId(): Promise<number | null> {
+async function viewerAlias(id: string): Promise<string | null> {
   const jar = await cookies()
-  const token = jar.get("TOKEN")?.value
-  if (!token) return null
+  if (!jar.get("TOKEN")?.value) return null
 
-  const parts = token.split(".")
-  if (parts.length !== 3) return null
-
-  const [id, expires, signature] = parts
-  if (!/^[1-9]\d*$/.test(id) || !/^\d+$/.test(expires) || !signature) return null
-
-  const userId = Number(id)
-  if (!Number.isSafeInteger(userId)) return null
-  return userId
+  try {
+    const response = await API.get(`/lots/${encodeURIComponent(id)}/alias`)
+    if (!response.ok) return null
+    const payload = await readPayload(response)
+    if (!isRecord(payload)) return null
+    return parseNickname(payload.alias)
+  } catch {
+    return null
+  }
 }
 
 async function placeBid(
   id: string,
   amount: number,
-): Promise<{ status: number; message?: string; lot?: ShowcaseLot; leading?: boolean }> {
+): Promise<{ status: number; message?: string; lot?: ShowcaseLot; leading?: boolean; alias?: string | null }> {
   "use server"
 
   if (!/^[1-9]\d*$/.test(id)) return { status: 400, message: "Lote inválido." }
@@ -131,6 +130,7 @@ async function placeBid(
     status: response.status,
     lot,
     leading: isRecord(payload) && payload.leading === true,
+    alias: isRecord(payload) ? parseNickname(payload.alias) : null,
   }
 }
 
@@ -210,7 +210,7 @@ export default async function LotPage({ params }: { params: Promise<{ id: string
     <LotPageClient
       lot={view.lot}
       condition={view.condition}
-      viewerId={await sessionUserId()}
+      alias={await viewerAlias(id)}
       placeBid={placeBid}
       cancelled={view.cancelled}
       canBid={role !== "auctioneer"}

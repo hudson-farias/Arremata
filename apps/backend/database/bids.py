@@ -9,6 +9,10 @@ class BidsORM(Base):
         UniqueConstraint('lot_id', 'position', name = 'bids_lot_position_unique'),
         UniqueConstraint('lot_id', 'amount_cents', name = 'bids_lot_amount_unique'),
         CheckConstraint('position > 0', name = 'bids_position_positive'),
+        CheckConstraint(
+            "nickname ~ '^[a-z]+-[a-z]+$'",
+            name = 'bids_nickname_form',
+        ),
     )
 
     id = Column(Integer, primary_key = True, index = True)
@@ -19,3 +23,4 @@ class BidsORM(Base):
     position = Column(Integer, nullable = False)
     prev_hash = Column(String(64), nullable = False)
     hash = Column(String(64), nullable = False)
+    nickname = Column(String(64), nullable = False)

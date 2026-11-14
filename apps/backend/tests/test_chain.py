@@ -23,12 +23,13 @@ def campos(**extras):
     return base
 
 
-def elo(position, bidder_id, amount, created, prev):
-    digest = sign(bid_message(7, position, bidder_id, amount, created, prev))
+def elo(position, bidder_id, nickname, amount, created, prev):
+    digest = sign(bid_message(7, position, bidder_id, nickname, amount, created, prev))
     return {
         'id': position,
         'position': position,
         'bidder_id': bidder_id,
+        'nickname': nickname,
         'amount_cents': amount,
         'created_at': created,
         'prev_hash': prev,
@@ -38,8 +39,8 @@ def elo(position, bidder_id, amount, created, prev):
 
 def livro():
     genesis = sign(genesis_message(7, 1000, 100, STARTS))
-    primeiro, primeiro_hash = elo(1, 3, 1500, CREATED, genesis)
-    segundo, segundo_hash = elo(2, 4, 2500, SECOND_AT, primeiro_hash)
+    primeiro, primeiro_hash = elo(1, 3, 'red-pikachu', 1500, CREATED, genesis)
+    segundo, segundo_hash = elo(2, 4, 'cintia-garchomp', 2500, SECOND_AT, primeiro_hash)
     return [primeiro, segundo], segundo_hash
 
 
@@ -68,10 +69,25 @@ def test_mensagem_canonica_e_adulteracao():
     assert head == ponta
 
 
+def test_mensagem_inclui_apelido_e_id():
+    mensagem = bid_message(7, 1, 3, 'red-pikachu', 1500, CREATED, 'abc')
+    assert mensagem == '7|1|3|red-pikachu|1500|2026-11-01T18:02:03.000004+00:00|abc'
+
+    lances, ponta = livro()
+    intact, head = assess_chain(bids = lances, **campos())
+    assert intact
+    assert head == ponta
+
+    lances[0]['nickname'] = 'blue-snorlax'
+    intact, head = assess_chain(bids = lances, **campos())
+    assert not intact
+    assert head == ponta
+
+
 def test_valor_igual_nao_e_vencedor_alternativo():
     genesis = sign(genesis_message(7, 1000, 100, STARTS))
-    primeiro, primeiro_hash = elo(1, 3, 1500, CREATED, genesis)
-    segundo, segundo_hash = elo(2, 4, 1500, SECOND_AT, primeiro_hash)
+    primeiro, primeiro_hash = elo(1, 3, 'red-pikachu', 1500, CREATED, genesis)
+    segundo, segundo_hash = elo(2, 4, 'cintia-garchomp', 1500, SECOND_AT, primeiro_hash)
     lances = [primeiro, segundo]
     base = campos(settlement = {
         'chain_head': segundo_hash,
@@ -129,7 +145,7 @@ def test_posicao_fora_da_sequencia_quebra():
     lances, ponta = livro()
     lances[1]['position'] = 3
     lances[1]['hash'] = sign(bid_message(
-        7, 3, 4, 2500, SECOND_AT, lances[1]['prev_hash'],
+        7, 3, 4, lances[1]['nickname'], 2500, SECOND_AT, lances[1]['prev_hash'],
     ))
 
     intact, head = assess_chain(bids = lances, **campos())
@@ -149,7 +165,7 @@ def test_recalcular_um_elo_nao_salva_o_seguinte():
     lances, ponta = livro()
     lances[0]['amount_cents'] = 1501
     lances[0]['hash'] = sign(bid_message(
-        7, 1, 3, 1501, CREATED, lances[0]['prev_hash'],
+        7, 1, 3, lances[0]['nickname'], 1501, CREATED, lances[0]['prev_hash'],
     ))
 
     intact, head = assess_chain(bids = lances, **campos())

@@ -1,4 +1,4 @@
-import { isShowcaseStatus, type ShowcaseStatus } from "@/components/lots/model"
+import { isShowcaseStatus, parseNickname, type ShowcaseStatus } from "@/components/lots/model"
 import { parseCents } from "@/lib/money"
 
 export type BidPosition = "winning" | "outbid" | "lost"
@@ -12,7 +12,7 @@ export type WinLot = {
   number: string
   amount: number
   settledAt: string | null
-  winner: number
+  winner: string
 }
 
 export type BidLot = {
@@ -119,8 +119,8 @@ function parseWin(value: unknown): WinLot | null {
 
   const face = cardFace(value)
   const amount = parseCents(value.amount)
-  const winner = idOf(value.winner)
-  if (!face || amount == null || winner == null) return null
+  const winner = parseNickname(value.winner)
+  if (!face || amount == null || !winner) return null
 
   return {
     ...face,

@@ -22,7 +22,13 @@ const movements = [
   },
 ]
 
-export function WalletBoard({ wallet }: { wallet: Wallet }) {
+export function WalletBoard({
+  wallet,
+  role,
+}: {
+  wallet: Wallet
+  role: "auctioneer" | "bidder" | null
+}) {
   const balances = [
     {
       label: "Disponível",
@@ -58,7 +64,7 @@ export function WalletBoard({ wallet }: { wallet: Wallet }) {
               lance.
             </p>
           </div>
-          <DepositDialog />
+          {role !== "auctioneer" ? <DepositDialog /> : null}
         </div>
       </header>
 

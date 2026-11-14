@@ -43,6 +43,7 @@ async def login(body: Credentials, response: Response):
         max_age = user.TOKEN_TTL,
         path = '/',
         samesite = 'lax',
+        httponly = True,
     )
 
     return {'access_token': access_token, 'token_type': 'bearer'}

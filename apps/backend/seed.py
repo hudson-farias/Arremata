@@ -8,6 +8,7 @@ from database.bids import BidsORM
 from database.lots import LotsORM
 from database.settlements import SettlementsORM
 from database.users import AUCTIONEER, BIDDER, UsersORM
+from services.alias import ensure_alias
 from services.chain import bid_message, genesis_message, sign
 from services.lots import aware, now_utc
 
@@ -130,10 +131,12 @@ async def _bids(db, lot_id, card, starts_at, ends_at, steps):
 
     for bidder_id, amount_cents, created_at in steps:
         created_at = aware(created_at)
+        nickname = await ensure_alias(db, lot_id, bidder_id)
         digest = sign(bid_message(
             lot_id,
             position,
             bidder_id,
+            nickname,
             amount_cents,
             created_at,
             prev_hash,
@@ -146,6 +149,7 @@ async def _bids(db, lot_id, card, starts_at, ends_at, steps):
             position = position,
             prev_hash = prev_hash,
             hash = digest,
+            nickname = nickname,
         ))
         prev_hash = digest
         head = digest
