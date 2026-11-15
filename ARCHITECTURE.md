@@ -1,8 +1,75 @@
 # Documentação técnica do Arremata
 
-A entrada do projeto está no [README](README.md).
+A entrada do projeto está no [README](README.md). Gotchas em [BROKEN.md](BROKEN.md). Uso de IA em [AI.md](AI.md). Backlog em [TODO.md](TODO.md).
 
-## Como rodar
+## Índice
+
+- [Visão da árvore](#visão-da-árvore)
+- [Self-ORM](#self-orm)
+- [Rede, URLs e tempo real](#rede-urls-e-tempo-real)
+- [Autenticação e sessão](#autenticação-e-sessão)
+- [Papéis](#papéis)
+- [Clientes HTTP no front](#clientes-http-no-front)
+- [Cadeia de lances](#cadeia-de-lances)
+
+## Visão da árvore
+
+Monorepo: API FastAPI, site Next.js, Compose e specs na raiz.
+
+### Backend
+
+```text
+apps/backend/
+  main.py, env.py, seed.py
+  database/           # tabelas ORM + reexports
+  database/core/      # Session, Base, Transaction
+  models/             # schemas Pydantic
+  routers/            # HTTP / WebSocket
+  services/           # bids, live, chain, cards, settlement…
+  alembic/            # migrations
+  utils/              # redis, rate limit
+  tests/
+```
+
+### Web
+
+```text
+apps/web/src/
+  app/                # rotas (auth, lots, auctioneer, wallet, wins…)
+  api/                # server.ts, client.ts, socket.ts
+  components/         # lots, auctioneer, site, ui…
+  lib/
+```
+
+### Infra e specs
+
+```text
+infrastructure/docker-compose.yml
+.env.example, apps/backend/.env.example, apps/web/.env.example
+ARCHITECTURE.md, BROKEN.md, AI.md, TODO.md, README.md
+```
+
+## Self-ORM
+
+Camada própria em `apps/backend/database/core/`, reexportada em `database/__init__.py` (`Session`, `engine`, `Base`, `Transaction`).
+
+### Session e Base
+
+`session.py` cria o engine async (Postgres) e o `Session` (`sessionmaker` + `AsyncSession`).
+
+`Base` (`DeclarativeBase`) oferece CRUD curto — `create`, `update`, `delete`, `find_one`, `find_many`, `find_filtered` — cada um abre um `Session`, executa e faz `commit`. Serve para leituras e escritas isoladas nas tabelas em `database/*.py`.
+
+### Transaction e locks
+
+`Transaction` é um contexto de transação longa: commit explícito, rollback no exit se não commitou, e `lock` / `lock_one` / `lock_row` com `FOR UPDATE` (opcional `skip_locked`).
+
+Lance, cancelamento e liquidação usam `Transaction` + locks. Leituras pontuais e CRUD do `Base` usam `Session` curto.
+
+## Rede, URLs e tempo real
+
+Subir o stack: ver [README](README.md).
+
+### Variáveis e hosts
 
 O `.env` da raiz é o arquivo que o Compose passa ao `npm run build` (`docker compose --env-file .env`).
 
@@ -14,9 +81,33 @@ Não há rewrite `/backend` no Next. O navegador fala com a API no host público
 
 `apps/web/.env` não entra na imagem (está no `.dockerignore`). Esse arquivo vale para o `next dev`.
 
+### WebSocket e proxy
+
 O handshake manda o cookie `TOKEN` httpOnly. Não há `?token=` na URL. O cookie só segue se a página e o `wss://` tiverem o mesmo host. Atrás de HTTPS, o nginx da API precisa repassar `Upgrade` e `Connection`.
 
+### Tempo real (Redis pub/sub)
+
+Depois de lance, cancelamento ou liquidação, `services/live.py` publica no Redis (`publish_lot`, `publish_cancelled`) no canal `arremata:lot:{id}`.
+
+`LotRooms` faz `psubscribe` em `arremata:lot:*` e espalha a mensagem aos WebSockets daquela sala (payload `lot` ou `cancelled`, com `leading` por espectador).
+
+### Cache Redis (Pokémon TCG)
+
+Uso separado do pub/sub. `services/cards.py` guarda respostas da Pokémon TCG API via `cache_get` / `cache_set` em `utils/redis.py` (chaves `cards:…`, TTL 300s). Não participa do fan-out ao vivo.
+
+## Autenticação e sessão
+
+### Cookie httpOnly
+
+Login (server action) grava `TOKEN` httpOnly. O cookie não é legível no JavaScript do browser. O WebSocket envia o mesmo cookie no handshake.
+
+### Server actions e api/server
+
+Auth e sessão passam por server actions e `apps/web/src/api/server.ts`: o servidor lê o cookie e manda `Authorization: Bearer` para a API (`NEXT_PUBLIC_API_URL`). Mais seguro do que expor a sessão no cliente.
+
 ## Papéis
+
+### Regras atuais
 
 Dois papéis no usuário: `auctioneer` e `bidder`. O cadastro não oferece escolha. `POST /register` grava `bidder`.
 
@@ -24,7 +115,23 @@ O leiloeiro cria, edita e cancela lote (`require_auctioneer` em `apps/backend/ro
 
 O licitante dá lance (`require_bidder` em `apps/backend/routers/lots.py`). O leiloeiro não vê o console de lance. O depósito também exige `require_bidder` (`POST /wallet/deposits`); a leitura da carteira segue no dono da sessão.
 
+### Histórico / decisão
+
+A primeira intenção era o leiloeiro depositar e dar lance na mesma conta (um saldo), sem segunda conta para arrematar / sacar e redepositar. O modelo adotado separa os papéis — leiloeiro só vende; licitante só compra.
+
+### Contas da seed
+
 Na seed, `leiloeiro@arremata.dev` é leiloeiro. `ana@arremata.dev` e `bruno@arremata.dev` são licitantes.
+
+## Clientes HTTP no front
+
+### api/server
+
+Caminho adotado para autenticação e sessão: server actions + `apps/web/src/api/server.ts`, com o cookie httpOnly só no servidor.
+
+### api/client
+
+A intenção inicial era concentrar as interações do browser em `apps/web/src/api/client.ts`, inclusive com o cookie de sessão. O `api/client` permanece no repositório de propósito (uso pontual no browser, fora do fluxo de auth — ex. painel do leiloeiro). Não é dívida a “limpar” por higiene.
 
 ## Cadeia de lances
 
